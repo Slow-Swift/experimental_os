@@ -6,14 +6,8 @@ bits 16
 %define BACKSPACE 0x08
 %define ENDL 0x0D, 0x0A
 
-section .fsjump
-    jmp short start
-    nop
-
-section .fsheaders
-
 section .entry
-
+    global start
     start:
         ; Setup segments all to 0. Stack segment to 0x7C0:0 (grows downward)
         mov ax, 0x7C0
@@ -320,10 +314,10 @@ section .text
         ret
 
 section .rodata
-    nan_error: db 'Not a valid number', ENDL, 0
+    nan_error: db 'Not a valid num', ENDL, 0
     div_zero_error: db 'Cannot divide by 0', ENDL, 0
     new_line: db ENDL, 0
-    not_enough_stack_elements_error: db 'Not enough numbers for operation', ENDL, 0
+    not_enough_stack_elements_error: db 'Not enough', ENDL, 0
 
 section .bss
     printBuffer: resb 256
