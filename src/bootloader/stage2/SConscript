@@ -1,0 +1,35 @@
+import os
+
+from SCons.Environment import Environment
+from build_scripts.utility import GlobRecursive
+
+# Import the target environment
+Import('TARGET_ENVIRONMENT')
+TARGET_ENVIRONMENT: Environment
+
+# Add to the target environment flags
+env = TARGET_ENVIRONMENT.Clone()
+env.Append(
+    LINKFLAGS = [
+        '-Wl,-T', env.File('linker.ld').srcnode().path,
+        '-Wl,-Map=' + env.File('stage2.map').path
+    ],
+    ASFLAGS = [ '-I', env.Dir('.').srcnode() ]  # Allow includes from the stage 2 directory
+)
+
+# Find the source files
+sources = GlobRecursive(env, '*.asm')
+
+# Collect headers so that the image is recreated when the header's change
+headers = GlobRecursive(env, '*.inc')
+
+# Generate objects files from the source
+objects = env.Object(sources)
+
+# Create the stage2 program
+stage2 = env.Program('stage2.elf', objects)
+env.Depends(stage2, headers)
+
+Export('stage2')
+
+

@@ -1,0 +1,9 @@
+label: gpt
+label-id: B5768339-2CBE-9F47-8434-3D024AFCC500
+device: ./build/image.dd
+unit: sectors
+first-lba: 2048
+last-lba: 262110
+sector-size: 512
+
+./build/image.dd1 : start=        2048, size=       32768, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=50D5DA8F-BECB-254A-BBE6-57FABF5D5639
