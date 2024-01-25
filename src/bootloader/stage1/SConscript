@@ -9,7 +9,8 @@ env = TARGET_ENVIRONMENT.Clone()
 env.Append(
     ASFLAGS = [
         # Add a definition that can be used in assembly files
-        f'-DFILESYSTEM={TARGET_ENVIRONMENT["imageFS"]}' 
+        f'-DFILESYSTEM={TARGET_ENVIRONMENT["imageFS"]}',
+        '-I', env.Dir('.').srcnode()
     ],
     LINKFLAGS = [
         '-Wl,-T', env.File('linker.ld').srcnode().path,
@@ -20,11 +21,15 @@ env.Append(
 # Get the files that must be assembled
 inputs = GlobRecursive(env, "*.asm")
 
+# Collect headers so that the image is recreated when the header's change
+headers = GlobRecursive(env, '*.inc')
+
 # Generate object files from the assembly files
 objects = env.Object(inputs)
 
 # Link all the files together
 stage1 = env.Program('stage1.bin', objects)
+env.Depends(stage1, headers)
 
 # Export the created program
 Export('stage1')

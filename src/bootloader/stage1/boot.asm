@@ -1,5 +1,7 @@
 bits 16
 
+%include "structs.inc"
+
 ; Character Codes
 %define CARRIAGE_RETURN 0x0D
 %define LINE_FEED 0x0A
@@ -9,59 +11,242 @@ bits 16
 section .entry
     global start
     start:
-        ; Setup segments all to 0. Stack segment to 0x7C0:0 (grows downward)
-        mov ax, 0x7C0
-        mov ss, ax
+        ; Setup segments all to 0
         xor ax, ax
+        mov ss, ax
         mov ds, ax
         mov es, ax
-        mov sp, ax
 
-    .main_loop:
-        call read_line
+        ; Setup stack pointer
+        xor esp, esp
+        mov sp, 0x7C00
 
-        mov al, [charBuffer]    ; Copy the first character of the line into al
-    .switch_plus:
-        cmp al, '+'             ; Check if first char is '+'
-        jne .switch_dash        ; If not move to next check
-        call op_add             ; Call add
-        jmp .finish_op
-    .switch_dash:
-        cmp al, '-'             ; Check if first char is '-'
-        jne .switch_star     ; If not move to next check
-        call op_sub             ; Call sub
-        jmp .finish_op
-    .switch_star:
-        cmp al, '*'
-        jne .switch_slash
-        call op_mul
-        jmp .finish_op
-    .switch_slash:
-        cmp al, '/'
-        jne .switch_default
-        call op_div
-        jmp .finish_op
-    .finish_op:
-        or ax, ax
-        jnz .switch_end
-        pop ax
-        call printNum
-        call printLine
+        ; Save disk
+        mov [drive_code], dl
+
+        ; Print setup message
+        mov si, setup_msg
+        call puts
+
+        ; Ensure disk extensions are present
+        call check_extensions_present
+
+        ; Read Partition Header
+        xor eax, eax
+        inc eax             ; LBA 1
+        mov cx, ax          ; Read 1 sector
+        mov bx, disk_buffer ; Store results in the disk buffer
+        call read_sectors
+
+        ; Read ELF header
+        mov eax, [disk_buffer + partition_table_header.usable_start]    ; Get the LBA of the first usable block
+        ;mov cx, 1                                                      ; cx should be 1 already
+        call read_sectors                                               ; Read the ELF Header
+        mov ebx, eax                                                    ; Save LBA of the first usable block in ecx
+
+        ; Check ELF Magic Number
+        cmp dword [disk_buffer + elf_header.magic], 0x464C457F    ; Check that the elf magic is correct
+        je .ok
+            ; * More checks could be added in here but we are limited to a single sector of code
+            mov al, 0x33
+            call error
+    .ok:
+        ; * Make sure we have read all the program headers
+        xor eax, eax
+        mov ax, [disk_buffer + elf_header.prog_table_entry_size]       ; Determine size of a program entry
+        mov cx, [disk_buffer + elf_header.prog_table_entry_count]      ; Get number of program entries
+        push eax                                                        ; Save information for later
+        push ecx                                                        
+        mul cx                                                          ; Determine size of program entry table
+                                                                        ; Need to do this before loading into dx because multiply clears dx
+        mov edx, [disk_buffer + elf_header.prog_table_pos]              ; Get start of program table
+        push edx     
+        add eax, edx                                                    ; Determine offset of the end of a program entry
+        add eax, 511 
+        mov ecx, 512                                                    ; Determine size in sectors required (round up)
+        xor edx, edx                                                    ; EDX is part of dividend
+        div ecx
+        
+        mov cx, ax          ; Read required sectors
+        mov eax, ebx        ; Restore ELF file LBA
+        mov bx, multi_sector_buffer ; Store results in the multi sector buffer
+        mov dl, [drive_code]
+        call read_sectors
+
+        pop esi                         ; esi = program table offset 
+        add esi, multi_sector_buffer    ; esi = data start + program_table_offset
+        mov ebx, eax                    ; ebx = elf file lba
+        pop eax                         ; eax = program table entry count
+        jz .read_program_end
+        pop ecx                         ; ecx = program table entry size
+    .read_program_loop:
+        call read_program_header
+        add esi, ecx                    ; esi += program table entry size
+        dec eax
+        jg .read_program_loop
+    .read_program_end:
+        xor ax, ax                      ; push segment 0
         push ax
-        jmp .switch_end
-    .switch_default:
-        call convert_to_num           ; If it was not an operation push the number
-        push ax
-    .switch_end:
-        jmp .main_loop
+        push word [multi_sector_buffer + elf_header.entry_pos]  ; push stage 2 address
+        retf                                                    ; Far return into stage 2
 
-    hlt:
-        jmp hlt
+        mov si, msg_ok
+        call puts
 
-section .text
+        jmp halt
+
+    ; 
+    ; Parameters:
+    ;   ebx: lba of elf file
+    ;   si : start of program header
+    ;
+    read_program_header:
+        pushad
+
+        ; Check program type is load
+        cmp byte [si + elf_program_header.type], 0x01   ; Load type is 0x01
+        jne .done   ; If not load type then skip to end
+    .type_load:
+        mov edi, [si + elf_program_header.virtual_addr] ; Address to load program to 
+        mov ecx, [si + elf_program_header.memory_size]  ; Size of program in bytes
+        
+        ; Initialize memory [edi to edi + ecx] to zero
+        xor al, al       ; Byte to write               
+        rep stosb
+    
+        mov eax, [si + elf_program_header.offset]       ; Determine how far down the file the program is
+        mov edi, [si + elf_program_header.virtual_addr] ; Reload virtual address since edi has been modified
+        mov ecx, 512                                    ; Sector Size
+        xor edx, edx                                    ; Clear edx
+        div ecx         ; Determine sectors (eax) and offset in sector (edx): offset / sector size, offset % sector size
+        push edx    ; esi = offset in sector
+        
+        add eax, ebx   ; Add the lba of the start of the elf file
+
+        mov cx, 1               ; Read 1 sector
+        mov bx, disk_buffer     ; Read into the disk buffer
+        mov dl, [drive_code]    ; Read from the drive
+        call read_sectors       ; Perform the read
+
+        mov ebx, [si + elf_program_header.file_size]    ; Determine filesize
+        pop esi
+        
+        mov ecx, esi    ; toRead = offset in sector
+        add ecx, ebx    ; toRead += remainingToRead
+        mov edx, 512
+        cmp ecx, edx    ; ecx = min(ecx, 512)
+        jle .next
+        mov ecx, edx
+    .next:
+        sub ecx, esi            ; toRead -= offset in sector
+        mov edx, ecx            ; save toRead
+        add esi, disk_buffer    ; readPos = readOffset + disk_buffer
+        rep movsb               ; move ecx bytes from ds:[si] to es:[di]
+        sub ebx, edx            ; remainingToRead -= toRead
+        jle .done          ; If remainingToRead <= 0 then exit
+    .read_loop:
+        push ebx                ; Save remaining to read
+
+        ; Read next sector
+        inc eax                 ; increment read LBA
+        mov bx, disk_buffer     ; read to disk_buffer
+        mov cx, 1               ; read 1 sector
+        mov dl, [drive_code]    ; read from the boot disk
+        call read_sectors       ; perform the read
+
+        pop ebx         ; Restore remainingToRead
+        mov ecx, ebx    ; toRead = max(remainingToRead, 512)
+        cmp ecx, 512
+        jle .after_max
+        mov ecx, 512
+    .after_max:
+        mov edx, ecx
+        rep movsb       ; move ecx bytes from ds:[si] to es:[di]
+        sub ebx, edx    ; remainingToRead -= toRead
+        jg .read_loop
+
+    .done:
+        popad
+        ret
 
     ;
-    ; si: address of string
+    ; Check whether disk extensions are present
+    ; If disk extensions are not present the program is halted
+    ; Parameters:
+    ;   dl: drive code
+    ;
+    ; Volatile:
+    ;   ax, bx, cx, dh
+    ;
+    check_extensions_present:
+        ; Call interrupt 0x13:41 (bx:0x55aa)
+        mov ah, 0x41
+        mov bx, 0x55AA
+        int 0x13
+        jc .error       ; Error if the carry flag was set
+        ret
+
+    .error:
+        mov al, 0x31       ; Error 1: Disk extensions not present
+        call error
+
+    ;
+    ; Read sectors from the disk
+    ; Parameters:
+    ;   eax: LBA address of first sector
+    ;   cx: Number of sectors to read (max 127)
+    ;   es:bx: Memory address to read to
+    ;   dl: drive code
+    ;
+    ; Volatile:
+    ;   dap
+    ;
+    read_sectors:
+        push si
+        push eax
+
+        ; Setup the disk address packet
+        mov [dap.lba], eax
+        mov [dap.segment], es
+        mov [dap.offset], bx
+        mov [dap.count], cx
+        
+        ; Call the disk read interrupt
+        mov si, dap     ; ds:si = disk address packet
+        mov ah, 0x42
+        int 0x13
+
+        ; TODO: Ensure sectors read matches desired sectors
+
+        jc .error
+
+        pop eax
+        pop si
+        ret
+
+        .error:
+        mov al, 0x32        ; Error 0x32 (2): Error reading from disk
+        call error
+
+
+    ;
+    ; Print an error message and halt.
+    ; Does not return.
+    ; Parameters:
+    ;   al: ASCII error code
+    ;
+    error:
+        mov si, error_msg   ; Print the error message
+        call puts
+
+        mov ah, 0x0E        ; Print the code
+        int 0x10
+        jmp halt            ; Halt the program
+
+    ; 
+    ; print a string to the screen
+    ; Parameters:
+    ;   si: address of string
     ;
     puts:
         ; Save modified registers
@@ -69,13 +254,13 @@ section .text
         push ax
         
     .loop:
-        lodsb       ; Load next character
+        lodsb       ; Load next character into al
         or al, al   ; Exit if it is null
         jz .done
 
         mov ah, 0x0E    ; Call interrupt 0x10 - 0x0E to print al
         int 0x10
-        jmp .loop   ; Continue to next character
+        jmp .loop       ; Continue to next character
         
     .done:
         ; Restore modified registers
@@ -84,241 +269,29 @@ section .text
         ret
 
     ;
-    ; Output a single character
-    ; al: char to print
+    ; Halts the program with an infite loop
+    ; Never returns
     ;
-    putc:
-        ; Save modified registers
-        push ax
+    halt:
+        jmp halt
 
-        ; Call interrupt 0x10/0E to print al
-        mov bh, 0x0     ; Page to print on
-        mov ah, 0x0E    ; Subfunction to call (0E: print character)
-        int 0x10
-        pop ax
-        ret
+section .data
+    align 4
+    dap: 
+        .size:      db 0x10     ; Size of dap in bytes
+                    db 0        ; Always 0
+        .count:     dw 0        ; Sectors to read
+        .offset:    dw 0        ; Buffer offset
+        .segment:   dw 0        ; Buffer segment
+        .lba:       dq 0        ; LBA
 
-    ;
-    ; Print a number in decimal
-    ; ax: number to print
-    ;
-    printNum:
-        push ax
-        push cx
-        push dx
-        push si
-
-        mov [printBuffer], byte 0   ; Store end of string at printBuffer 0
-        mov si, printBuffer         ; Set si to index of next character
-        inc si
-        mov cx, 10                  ; base
-    .convert_loop:
-        xor dx, dx      ; Clear dx
-        div cx          ; divide dx:ax by 10 -> ax: quotient, dx: remainder
-        add dx, 0x30    ; convert remainder to ASCII value
-        mov [si], dx    ; store character in print buffer
-        inc si
-        or ax, ax       ; if ax not zero repeat loop
-        jnz .convert_loop
-    .done_convert:
-        dec si          ; Move si back since it was incremented but there was no new character
-        std             ; Reverse direction of string ops to print in reverse order
-        call puts       ; Print the number
-        cld             ; Reset direction of string ops
-
-        pop si
-        pop dx
-        pop cx
-        pop ax
-        ret
-
-    ;
-    ; Print a new line
-    ;
-    printLine:
-        push si
-        mov si, new_line
-        call puts
-        pop si
-        ret
-    ;
-    ; Read line
-    ;
-    read_line:
-        ; print '> ' before reading line
-        mov al, '>'
-        call putc
-        mov al, ' '
-        call putc
-
-        mov si, 0           ; Index into line
-    .typing_loop:
-        mov ah, 0x00        ; Call interrupt 0x16 - 0x00 to get char
-        int 0x16
-        or al, al           ; Check for char not null
-        jz .typing_loop     ; If it is null restart loop
-        call putc           ; Print the character
-
-        cmp al, CARRIAGE_RETURN     ; Check for carriage return and exit if typed
-        je .end_line
-
-        cmp al, BACKSPACE   ; Check for backspace
-        jne .normal_char   
-        mov al, ' '         ; Overwrite current char with ' '
-        call putc           
-        mov al, BACKSPACE   ; Move cursor back
-        call putc           
-        dec si              ; Reduce string length
-        jmp .typing_loop
-
-    .normal_char:
-        mov [si + charBuffer], al   ; Add character to line
-        inc si
-        jmp .typing_loop
-    .end_line:
-        mov [si + charBuffer], byte 0    ; Add null terminator to line
-        mov al, LINE_FEED
-        call putc
-        ret
-
-
-
-    ; 
-    ; Add the last two items on the stack
-    ;
-    op_add:
-        cmp sp, -6
-        jle .ok
-            push si
-            mov si, not_enough_stack_elements_error
-            call puts
-            pop si
-            mov ax, 1
-            ret
-    .ok:
-        pop cx     ; Store return address
-        pop bx      ; Get operands
-        pop ax
-        add ax, bx  ; Perform operation
-        push ax     
-        push cx    ; Restore return address
-        xor ax, ax
-        ret
-
-    ;
-    ; Subtract the last two items on the stack
-    ;
-    op_sub:
-        cmp sp, -6
-        jle .ok
-            push si
-            mov si, not_enough_stack_elements_error
-            call puts
-            pop si
-            mov ax, 1
-            ret
-    .ok:
-        pop cx     ; Store return address
-        pop bx     ; Get operands
-        pop ax
-        sub ax, bx  ; Perform operation
-        push ax     
-        push cx    ; Restore return address
-        xor ax, ax
-        ret
-
-    ;
-    ; Subtract the last two items on the stack
-    ;
-    op_mul:
-        cmp sp, -6
-        jle .ok
-            push si
-            mov si, not_enough_stack_elements_error
-            call puts
-            pop si
-            mov ax, 1
-            ret
-    .ok:
-        pop cx     ; Store return address
-        pop bx     ; Get operands
-        pop ax
-        mul bx  ; Perform operation
-        push ax     
-        push cx    ; Restore return address
-        xor ax, ax
-        ret
-
-    ;
-    ; Subtract the last two items on the stack
-    ;
-    op_div:
-        cmp sp, -6
-        jle .num_ok
-            push si
-            mov si, not_enough_stack_elements_error
-            call puts
-            pop si
-            mov ax, 1
-            ret
-    .num_ok:
-        pop cx     ; Store return address
-        pop bx     ; Get operands
-        or bx, bx
-        jnz .ok
-    .if_zero:
-        push si
-        mov si, div_zero_error
-        call puts
-        pop si
-        push cx
-        mov ax, 1
-        ret
-    .ok:
-        pop ax
-        div bx     ; Perform operation
-        push ax     
-        push cx    ; Restore return address
-        xor ax, ax
-        ret
-
-    ;
-    ; Convert the line to an integer
-    ; ax: converted value
-    ;
-    convert_to_num:
-        mov si, charBuffer  ; Pointer to next char
-        xor ax, ax           ; Converted value
-        mov cx, 10          ; Base
-    .loop:
-        push ax             ; Save ax
-        lodsb               ; Load next character
-        mov bl, al          ; Move character into bx
-        pop ax              ; Restore ax
-        or bl, bl           ; If it is null we have reached the end
-        jz .done
-
-        cmp bl, 0x30        ; If the character is not a digit report an error
-        jl .error
-        cmp bl, 0x39
-        jg .error
-
-        sub bl, 0x30        ; Convert ASCII code to 0-9
-        mul cx              ; Shift converted value up by 1
-        add ax, bx          ; Add new digit
-        jmp .loop
-    .error:
-        mov si, nan_error
-        call puts
-    .done:
-        ret
+    drive_code: db 0
 
 section .rodata
-    nan_error: db 'Not a valid num', ENDL, 0
-    div_zero_error: db 'Cannot divide by 0', ENDL, 0
-    new_line: db ENDL, 0
-    not_enough_stack_elements_error: db 'Not enough', ENDL, 0
+    setup_msg: db "In", ENDL, 0
+    msg_ok: db "D", ENDL, 0
+    error_msg: db "E: ", 0
 
 section .bss
-    printBuffer: resb 256
-    charBuffer: resb 256
+    disk_buffer: resb 512
+    multi_sector_buffer: resb 512
