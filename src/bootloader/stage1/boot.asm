@@ -85,15 +85,13 @@ section .entry
         dec eax
         jg .read_program_loop
     .read_program_end:
+        mov dl, [drive_code]            ; Pass drive to stage 2
         xor ax, ax                      ; push segment 0
         push ax
         push word [multi_sector_buffer + elf_header.entry_pos]  ; push stage 2 address
-        retf                                                    ; Far return into stage 2
+        retf      
 
-        mov si, msg_ok
-        call puts
-
-        jmp halt
+        jmp halt    ; Should neve happen
 
     ; 
     ; Parameters:
@@ -288,8 +286,7 @@ section .data
     drive_code: db 0
 
 section .rodata
-    setup_msg: db "In", ENDL, 0
-    msg_ok: db "D", ENDL, 0
+    setup_msg: db "Stage 1", ENDL, 0
     error_msg: db "E: ", 0
 
 section .bss
