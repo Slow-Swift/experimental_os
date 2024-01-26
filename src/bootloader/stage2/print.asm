@@ -1,7 +1,13 @@
 bits 16
 
-global puts
+%define CARRIAGE_RETURN 0x0D
+%define LINE_FEED       0x0A
+
 global putc
+global puts
+global putline
+global put_dec
+global put_hex
 global put_unsigned_double
 
 section .text
@@ -48,6 +54,18 @@ section .text
         ; Restore modified registers
         pop ax
         pop si
+        ret
+
+    ;
+    ; Print a new line
+    ;
+    putline:
+        push ax
+        mov al, CARRIAGE_RETURN
+        call putc
+        mov al, LINE_FEED
+        call putc
+        pop ax
         ret
 
     ;

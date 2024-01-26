@@ -7,7 +7,8 @@ bits 16
 
 extern puts
 extern putc
-extern put_unsigned_double
+extern putline
+extern put_dec
 
 section .entry
 
@@ -28,9 +29,9 @@ section .entry
         mov si, stage_2_loaded_msg
         call puts
 
-        mov ecx, 2
         mov eax, 0b100110
-        call put_unsigned_double
+        call put_dec
+        call putline
 
     halt:
         jmp halt
