@@ -1,8 +1,10 @@
-section .text
+bits 16
 
 global puts
 global putc
-global putuid
+global put_unsigned_double
+
+section .text
 
     ; 
     ; print a character to the screen
@@ -48,33 +50,63 @@ global putuid
         pop si
         ret
 
-    ; 
-    ; print a character to the screen
-    ; Parameters:
-    ;   eax: character to print
+    ;
+    ; Print an unsigned number in base 16
+    ;   eax: number to print
+    ;
+    put_hex:
+        push ecx
+        mov ecx, 16
+        call put_unsigned_double
+        pop ecx
+        ret
+
+    ;
+    ; Print an unsigned number in base ten
+    ;   eax: number to print
+    ;
+    put_dec:
+        push ecx
+        mov ecx, 10
+        call put_unsigned_double
+        pop ecx
+        ret
+
+    ;
+    ; Print an unsigned number in a given base
+    ;   eax: number to print
     ;   ecx: base
     ;
-    putuid:
+    put_unsigned_double:
         push eax
+        push ecx
         push edx
-        push bx
+        push si
 
-    .print_loop:
-        xor edx, edx    ; <edx>         Clear upper part of dividend
-        div ecx         ; <eax, edx>    Divide eax by base: eax (quotient), edx (remainder)
-        push eax        ;               Save quotient
-        mov al, dl      ; <eax>         Copy remainder (digit) to al
-        add al, '0'     ; <eax>         Convert 0x0 to '0'
-        cmp al, '9'     ;               Check if greater than a digit 
-        jle .digit_converted    ;       
-        add al, 'A' - '0'   ; <eax>     If greater than digits then need to convert to hex digit
-    .digit_converted:
-        call putc
-        pop eax         ; <eax>
-        jnz .print_loop
-    .end:
-        pop bx
+        mov si, print_buffer        ; <esi>    Set si to index of next character
+        mov [si], byte 0            ;          Store end of string at start of print buffer
+        inc si                      ; <esi>
+    .convert_loop:
+        xor edx, edx                ; <edx>     Clear edx
+        div ecx                     ; <eax, edx> divide edx:eax by the base -> eax: quotient, edx: remainder
+        add dx, '0'                 ; <edx>     convert remainder to ASCII value
+        cmp dx, '9'
+        jle .ascii_converted        ;           If greater than 9 then convert to hex digit
+        add dx, 'A'-'9' - 1         ; <edx>     10 needs to be converted to A
+    .ascii_converted:
+        mov [si], dx                ;           store character in print buffer
+        inc si                      ; <esi>
+        or eax, eax                 ;           if ax not zero repeat loop
+        jnz .convert_loop
+    .done_convert:
+        dec si          ; <si>      Move si back since it was incremented but there was no new character
+        std             ;           Reverse direction of string ops to print in reverse order
+        call puts       ;           Print the number
+        cld             ;           Reset direction of string ops
+
+        pop si
         pop edx
+        pop ecx
         pop eax
         ret
 

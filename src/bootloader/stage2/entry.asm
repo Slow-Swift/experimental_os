@@ -7,18 +7,36 @@ bits 16
 
 extern puts
 extern putc
-extern putuid
+extern put_unsigned_double
 
 section .entry
 
     global entry
     entry:
-        cli
+        ; Save disk code
+        mov [disk_code], dl
+
+        ; Initialize all registers to zero
+        xor eax, eax
+        mov ebx, eax
+        mov ecx, eax
+        mov edx, eax
+        mov esi, eax
+        mov edi, eax
+
+        ; Print a starting message
         mov si, stage_2_loaded_msg
         call puts
+
+        mov ecx, 2
+        mov eax, 0b100110
+        call put_unsigned_double
 
     halt:
         jmp halt
 
 section .rodata
     stage_2_loaded_msg: db "Stage 2 Starting...", ENDL, 0
+
+section .bss
+    disk_code: db 0
