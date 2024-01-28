@@ -26,6 +26,12 @@ section .entry
         mov edx, eax
         mov esi, eax
         mov edi, eax
+        mov es, ax
+        mov ds, ax
+        
+        ; Initialize stack
+        mov ss, ax
+        mov sp, 0x1000
 
         ; Print a starting message
         mov si, stage_2_loaded_msg
