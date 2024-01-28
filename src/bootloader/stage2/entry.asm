@@ -10,6 +10,8 @@ extern putc
 extern putline
 extern put_dec
 
+extern enable_a20
+
 section .entry
 
     global entry
@@ -29,9 +31,8 @@ section .entry
         mov si, stage_2_loaded_msg
         call puts
 
-        mov eax, 0b100110
-        call put_dec
-        call putline
+        ; Enable the A20 Gate if it is disabled
+        call enable_a20
 
     halt:
         jmp halt

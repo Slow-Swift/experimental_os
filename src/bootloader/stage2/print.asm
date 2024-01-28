@@ -1,7 +1,6 @@
 bits 16
 
-%define CARRIAGE_RETURN 0x0D
-%define LINE_FEED       0x0A
+%include "common.inc"
 
 global putc
 global puts
