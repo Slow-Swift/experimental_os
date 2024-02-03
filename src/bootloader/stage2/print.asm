@@ -8,6 +8,7 @@ global putline
 global put_dec
 global put_hex
 global put_unsigned_double
+global hard_error
 
 section .text
 
@@ -23,7 +24,9 @@ section .text
 
         mov bh, 0x01    ; Page to print on
         mov ah, 0x0E    ; Call interrupt 0x10:0E
+        sti
         int 0x10
+        cli
 
         ; Restore modified registers
         pop bx
@@ -46,7 +49,9 @@ section .text
         jz .done
 
         mov ah, 0x0E    ; Call interrupt 0x10 - 0x0E to print al
+        cli
         int 0x10
+        sti
         jmp .loop       ; Continue to next character
         
     .done:
@@ -126,6 +131,18 @@ section .text
         pop ecx
         pop eax
         ret
+
+    ;
+    ; Print an error message and stop the program
+    ; Parameters:
+    ;   si: Address of error message
+    ; Does not return
+    ;
+    hard_error:
+        call puts
+        call putline
+    .halt:
+        jmp .halt
 
 section .bss
     print_buffer: resb 256
