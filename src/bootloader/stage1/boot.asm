@@ -159,6 +159,7 @@ section .entry
         mov ecx, 512
     .after_max:
         mov edx, ecx
+        mov esi, disk_buffer
         rep movsb       ; move ecx bytes from ds:[si] to es:[di]
         sub ebx, edx    ; remainingToRead -= toRead
         jg .read_loop
