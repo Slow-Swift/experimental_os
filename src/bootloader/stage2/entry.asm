@@ -5,6 +5,8 @@ bits 16
 %define BACKSPACE 0x08
 %define ENDL 0x0D, 0x0A
 
+%include "gpt_structs.inc"
+
 extern puts
 extern putc
 extern put_hex
@@ -15,6 +17,9 @@ extern disk_seek_abs
 extern disk_copy_bytes
 
 extern enable_a20
+
+extern gpt_initialize
+extern gpt_get_partition
 
 section .entry
 
@@ -38,7 +43,10 @@ section .entry
         ; Initialize stack
         mov ss, ax
         mov sp, 0x1000
+        call main
 
+section .text
+    main:
         ; Print a starting message
         mov si, stage_2_loaded_msg
         call puts
@@ -50,30 +58,27 @@ section .entry
         mov dl, [disk_code]
         call disk_initialize
 
-        ; Seek 0x1:0
-        mov eax, 0x1
-        mov ebx, 0
-        call disk_seek_abs
+        call gpt_initialize   
 
-        mov si, disk_read_msg
-        call puts
+        mov eax, 0
+        mov di, test_partition_entry
+        call gpt_get_partition
 
-        mov di, test_disk_data
-        mov ebx, 20
-        call disk_copy_bytes
-        mov eax, [test_disk_data]
+        mov eax, [test_partition_entry + partition_entry.lba_start]
         call put_hex
-
 
     halt:
         jmp halt
 
 section .rodata
     stage_2_loaded_msg: db "Stage 2 Starting...", ENDL, 0
-    disk_read_msg: db "Disk Read..."
+    disk_read_msg: db "Disk Read...", ENDL, 0
+    used_partition_found: db "Used Partition Found", ENDL, 0
+    unused_partition_found: db "Used Partition Found", ENDL, 0
+
 
 section .data
     disk_code: db 0
 
 section .bss
-    test_disk_data: resb 20
+    test_partition_entry: resb partition_entry_size
