@@ -7,6 +7,11 @@ global disk_initialize
 global disk_seek_abs
 global disk_seek_cur
 global disk_copy_bytes
+global disk_read_sector
+
+global segment_buffer
+
+%define SECTOR_SIZE 512
 
 section .text
 
@@ -29,18 +34,25 @@ section .text
         push eax
         push ebx
         push edx
+        push di
         
         push eax            ;           Save LBA start
         xor edx, edx        ; <edx>     Clear edx
         mov eax, ebx        ; <eax>     Copy offset to eax for division
-        mov ebx, 512        ; <ebx>     Will divide by sector size
+        mov ebx, SECTOR_SIZE; <ebx>     Will divide by sector size
         div ebx             ; <eax, edx>    eax = offset sectors, edx = offset in sector
         pop ebx             ; <ebx>     ebx = LBA start
         add eax, ebx        ; <eax>     eax = lba to read
         mov [current_offset], edx   ; Save offset
 
-        call read_sector    ;           Read the sector if it has not been read
+        cmp eax, [current_lba]  ; Only read if it is necessary
+        je .after_read
+        mov [current_lba], eax
+        mov di, segment_buffer
+        call disk_read_sector    ;           Read the sector if it has not been read
+    .after_read:
 
+        pop di
         pop edx
         pop ebx
         pop eax
@@ -87,7 +99,7 @@ section .text
     .read_loop:
         mov ecx, ebx                ; <ecx>     ecx = bytes to read
         add ecx, [current_offset]   ; <ecx>     Add offset in sector to get total offset
-        mov edx, 512                ; <edx>     edx = sector size
+        mov edx, SECTOR_SIZE        ; <edx>     edx = sector size
         cmp ecx, edx                ;           ecx = min(ecx, 512)
         cmovg ecx, edx              ; <ecx>
         sub ecx, [current_offset]   ; <ecx>     Subtract offset in sector to get sector bytes to read
@@ -105,10 +117,19 @@ section .text
         inc eax                     ; <eax>     Advance to next sector
         xor edx, edx                ; <edx>     Clear edx
         mov [current_offset], edx   ;           Clear current offset in sector
-        call read_sector            ;           Read the new sector
+
+        ; Only perform the read if it is necessary
+        cmp eax, [current_lba]
+        je .after_advance_sector
+        mov [current_lba], eax
+        push di
+        mov di, segment_buffer
+        call disk_read_sector       ;           Read the new sector
+        pop di
+        
     .after_advance_sector:
-        test ebx, 0
-        jg .read_loop   
+        test ebx, ebx
+        jne .read_loop   
     
         pop si
         pop di
@@ -119,20 +140,15 @@ section .text
         ret
 
     ;
-    ; Read a sector from the disk into the buffer
+    ; Read a sector from the disk
     ; Parameters:
-    ;   eax: LBA address of first sector
+    ;   eax: LBA address of sector
+    ;   di: address to read to
     ;
     ; Volatile:
     ;   dap
     ;
-    read_sector:
-        ; If the LBA has been read into the buffer then nothing need be done
-        cmp eax, [dap.lba]  
-        jne .perform_read
-        ret
-
-    .perform_read:
+    disk_read_sector:
         push si
         push ds
         push eax
@@ -140,12 +156,12 @@ section .text
 
         xor ebx, ebx        ; <ebx>     Clear ebx
         mov ds, ebx         ; <ds>      Clear ds
-        inc ebx             ; <ebx>     ebx = 1
+        inc ebx             ; <ebx>     ebx = 1     (sectors to read)
 
         ; Setup the disk address packet
         mov [dap.lba], eax
         mov [dap.count], bx    ;           Read 1 sector
-        mov word [dap.offset], segment_buffer
+        mov [dap.offset], di
         mov dl, [drive_code]    ; <edx>     Copy drive code to dl
         
         ; Call the disk read interrupt
@@ -177,15 +193,16 @@ section .data
         .size:      db 0x10     ; Size of dap in bytes
                     db 0        ; Always 0
         .count:     dw 0        ; Sectors to read
-        .offset:    dw segment_buffer        ; Buffer offset
+        .offset:    dw 0        ; Buffer offset
         .segment:   dw 0        ; Buffer segment
         .lba:       dq 0        ; LBA
 
-    drive_code: db 0
+    current_lba:    dd 0
     current_offset: dd 0
+    drive_code:     db 0
 
 section .rodata:
     read_error: db "Disk Error: Could not read sector", 0
 
 section .bss
-    segment_buffer: resb 512
+    segment_buffer: resb SECTOR_SIZE

@@ -57,7 +57,6 @@ section .text
     ;   al: 1 if partition is used (nonzero type guid), 0 otherwise
     ;
     gpt_get_partition:
-        push eax
         push ebx
         push edx
         
@@ -65,7 +64,7 @@ section .text
         mul edx     ; <eax, edx>    Determine offset of parition header. It is asssumed that this fits in eax
 
         ; Seek to the position of the partition entry
-        mov ebx, eax    ; <ebx>     Store partition entry offset in ebx
+        mov ebx, eax    ; <ebx>     Seek to partition offset
         mov eax, [gpt_header + partition_table_header.part_array_lba]   ; <eax>     Determine LBA of first parition entry
         call disk_seek_abs      ; Seek to the partition entry
 
@@ -87,7 +86,7 @@ section .text
 
         pop edx
         pop ebx
-        pop eax
+
         ret
 
 section .rodata

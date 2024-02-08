@@ -12,14 +12,16 @@ extern putc
 extern put_hex
 extern putline
 
-extern disk_initialize
-extern disk_seek_abs
-extern disk_copy_bytes
-
 extern enable_a20
 
+extern disk_initialize
 extern gpt_initialize
-extern gpt_get_partition
+extern fat_initialize
+
+extern fat_open_root_directory
+extern fat_find_file_in_directory
+extern fat_open_file
+extern fat_copy_sector
 
 section .entry
 
@@ -57,28 +59,41 @@ section .text
         ; Initialize the disk
         mov dl, [disk_code]
         call disk_initialize
+        mov si, disk_initialized_msg
+        call puts
 
         call gpt_initialize   
+        mov si, gpt_initialized_msg
+        call puts
 
-        mov eax, 0
-        mov di, test_partition_entry
-        call gpt_get_partition
+        call fat_initialize
+        mov si, fat_initialized_msg
+        call puts
 
-        mov eax, [test_partition_entry + partition_entry.lba_start]
-        call put_hex
+        call fat_open_root_directory
 
+        mov si, filename
+        call fat_find_file_in_directory
+
+        call fat_open_file
+
+        mov di, disk_test_buffer
+        call fat_copy_sector
+        mov si, di
+        call puts
+        s
     halt:
         jmp halt
 
 section .rodata
     stage_2_loaded_msg: db "Stage 2 Starting...", ENDL, 0
-    disk_read_msg: db "Disk Read...", ENDL, 0
-    used_partition_found: db "Used Partition Found", ENDL, 0
-    unused_partition_found: db "Used Partition Found", ENDL, 0
-
+    disk_initialized_msg:   db "Initalized Disk...", ENDL, 0
+    gpt_initialized_msg:   db "Initalized GPT...", ENDL, 0
+    fat_initialized_msg:   db "Initalized FAT...", ENDL, 0
+    filename: db "TEST    TXT", 0
 
 section .data
     disk_code: db 0
 
 section .bss
-    test_partition_entry: resb partition_entry_size
+    disk_test_buffer: resb 512
