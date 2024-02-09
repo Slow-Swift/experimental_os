@@ -78,9 +78,9 @@ if HOST_ENVIRONMENT['arch'] == 'i686':
 #    toolchain/platform_prefix
 #    toolchain/platform_prefix/bin
 #    toolchain/platform_prefix/lib/gxx/platform_prefix
-toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], platform_prefix.removesuffix('-'))
+toolchainDir = Path(HOST_ENVIRONMENT['toolchain'], platform_prefix.removesuffix('-')).resolve()
 toolchainBin = Path(toolchainDir, 'bin')
-toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', platform_prefix.removesuffix('-'))
+toolchainGccLibs = Path(toolchainDir, 'lib', 'gcc', platform_prefix.removesuffix('-'), DEPS['gcc'])
 
 TARGET_ENVIRONMENT = HOST_ENVIRONMENT.Clone(
     AR = f'{platform_prefix}ar',
@@ -104,8 +104,12 @@ TARGET_ENVIRONMENT.Append(
         '-g'
     ],
     CCFLAGS = [
-        '--ffreestanding',  # Generate freestanding code
+        '-ffreestanding',  # Generate freestanding code
         '-nostdlib'         # Don't include library references
+    ],
+    CXXFLAGS = [
+        '-fno-exceptions',
+        '-fno-rtti'
     ],
     LINKFLAGS = [
         '-nostdlib'         # Don't link to a library
@@ -131,11 +135,12 @@ variantDirStage1 = variantDir + '/stage1_{0}'.format(TARGET_ENVIRONMENT['imageFS
 # Load the build stages
 SConscript('src/bootloader/stage1/SConscript', variant_dir=variantDirStage1, duplicate=0)
 SConscript('src/bootloader/stage2/SConscript', variant_dir=variantDir + "/stage2", duplicate=0)
+SConscript('src/kernel/SConscript', variant_dir=variantDir + "/kernel", duplicate=0)
 SConscript('image/SConscript', variant_dir=variantDir, duplicate=0)
 
 # Import image stage to we can build it
-Import('image', 'stage1', 'stage2')
-Default(stage1, stage2)
+Import('image', 'stage1', 'stage2', 'kernel')
+Default(stage1, stage2, kernel)
 HOST_ENVIRONMENT.Alias('image', image)
 
 # Create the phony targets

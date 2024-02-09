@@ -17,6 +17,7 @@ SECTOR_SIZE = 512
 
 Import('stage1')
 Import('stage2')
+Import('kernel')
 
 Import('TARGET_ENVIRONMENT')
 TARGET_ENVIRONMENT: Environment
@@ -109,7 +110,7 @@ def unmount_fs(mount_dir: str):
     time.sleep(3)
     sh.fusermount(u=mount_dir)
 
-def build_disk(image, stage1, stage2, files, env):
+def build_disk(image, stage1, stage2, kernel, files, env):
     # Round the image size up to the number of sectors
     size_sectors = (env['imageSize'] + SECTOR_SIZE - 1) // SECTOR_SIZE
     filesystem = env['imageFS']
@@ -152,6 +153,12 @@ def build_disk(image, stage1, stage2, files, env):
         print(f"> mounting image to {tempdir}...")
         mount_fs(image, tempdir)
 
+        # Copy kernel
+        print(f"> copying kernel...")
+        bootdir = os.path.join(tempdir, 'boot')
+        os.makedirs(bootdir)
+        copy2(kernel, bootdir)
+
         # Copy files into the filesystem
         src_root = env['BASEDIR']
         print(f"> copying files...")
@@ -178,17 +185,16 @@ def build_disk(image, stage1, stage2, files, env):
 def build_image(target, source, env):
     stage1 = str(source[0])
     stage2 = str(source[1])
-    # TODO: Add Kernel here
-    files = source[2:]
+    kernel = str(source[2])
+    files = source[3:]
 
-    build_disk(str(target[0]), stage1, stage2, files, env)
+    build_disk(str(target[0]), stage1, stage2, kernel, files, env)
 
 # Collect the files in the root directory
 root = env.Dir('root')
 root_content = GlobRecursive(env, '*', root)
 
-#TODO: Add Kernel after stage2 
-inputs = [stage1, stage2] + root_content
+inputs = [stage1, stage2, kernel] + root_content
 
 output_fmt = 'img'
 output = f'image.{output_fmt}'

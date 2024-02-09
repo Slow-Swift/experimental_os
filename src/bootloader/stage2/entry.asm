@@ -72,16 +72,19 @@ section .text
 
         call fat_open_root_directory
 
-        mov si, filename
+        mov si, boot_folder
         call fat_find_file_in_directory
 
         call fat_open_file
 
-        mov di, disk_test_buffer
-        call fat_copy_sector
-        mov si, di
-        call puts
-        s
+        mov si, kernel_name
+        call fat_find_file_in_directory
+        call put_hex
+
+        ; mov di, disk_test_buffer
+        ; call fat_copy_sector
+        ; mov si, di
+        ; call puts
     halt:
         jmp halt
 
@@ -90,7 +93,9 @@ section .rodata
     disk_initialized_msg:   db "Initalized Disk...", ENDL, 0
     gpt_initialized_msg:   db "Initalized GPT...", ENDL, 0
     fat_initialized_msg:   db "Initalized FAT...", ENDL, 0
-    filename: db "TEST    TXT", 0
+    boot_folder:    db "BOOT       ", 0
+    kernel_name:    db "KERNEL  ELF", 0
+    filename:       db "TEST    TXT", 0
 
 section .data
     disk_code: db 0
