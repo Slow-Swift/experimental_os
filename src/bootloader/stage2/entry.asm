@@ -23,6 +23,9 @@ extern fat_find_file_in_directory
 extern fat_open_file
 extern fat_copy_sector
 
+extern load_gdt
+extern enter_unreal_mode
+
 section .entry
 
     global entry
@@ -80,11 +83,14 @@ section .text
         mov si, kernel_name
         call fat_find_file_in_directory
         call put_hex
+        call putline
 
-        ; mov di, disk_test_buffer
-        ; call fat_copy_sector
-        ; mov si, di
-        ; call puts
+        call load_gdt
+        call enter_unreal_mode
+
+        mov si, unreal_mode_msg
+        call puts
+
     halt:
         jmp halt
 
@@ -93,6 +99,7 @@ section .rodata
     disk_initialized_msg:   db "Initalized Disk...", ENDL, 0
     gpt_initialized_msg:   db "Initalized GPT...", ENDL, 0
     fat_initialized_msg:   db "Initalized FAT...", ENDL, 0
+    unreal_mode_msg:   db "Unreal Mode Enabled...", ENDL, 0
     boot_folder:    db "BOOT       ", 0
     kernel_name:    db "KERNEL  ELF", 0
     filename:       db "TEST    TXT", 0
