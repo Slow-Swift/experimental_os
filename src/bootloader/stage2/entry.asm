@@ -26,6 +26,8 @@ extern fat_copy_sector
 extern load_gdt
 extern enter_unreal_mode
 
+extern kl_load_kernel
+
 section .entry
 
     global entry
@@ -73,23 +75,13 @@ section .text
         mov si, fat_initialized_msg
         call puts
 
-        call fat_open_root_directory
-
-        mov si, boot_folder
-        call fat_find_file_in_directory
-
-        call fat_open_file
-
-        mov si, kernel_name
-        call fat_find_file_in_directory
-        call put_hex
-        call putline
-
         call load_gdt
         call enter_unreal_mode
 
         mov si, unreal_mode_msg
         call puts
+
+        call kl_load_kernel
 
     halt:
         jmp halt
