@@ -1,10 +1,6 @@
 bits 16
 
-%define CARRIAGE_RETURN 0x0D
-%define LINE_FEED 0x0A
-%define BACKSPACE 0x08
-%define ENDL 0x0D, 0x0A
-
+%include "common.inc"
 %include "gpt_structs.inc"
 
 extern puts
@@ -27,6 +23,9 @@ extern load_gdt
 extern enter_unreal_mode
 
 extern kl_load_kernel
+
+; Used for debugging
+global prog_end
 
 section .entry
 
@@ -83,6 +82,7 @@ section .text
 
         call kl_load_kernel
 
+    prog_end:
     halt:
         jmp halt
 

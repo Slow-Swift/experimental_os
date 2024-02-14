@@ -23,6 +23,9 @@ global fat_open_file
 global fat_advance_sector
 global fat_find_file_in_directory
 global fat_copy_sector
+global fat_copy_bytes
+global fat_seek_bytes
+global fat_seek_sector
 
 section .text
 
@@ -68,6 +71,13 @@ section .text
         ;*       If this is not the case a lot of other things need to change too.
         add eax, [partition + partition_entry.lba_start]                 ; <eax>     eax += partition start
         mov [data_section_lba], eax     ; Save lba of the data section
+
+        xor eax, eax                                                        ; <eax> Clear fat sector that will be loaded
+        mov [current_fat_sector], eax                                       ; <eax> Update the data
+        mov ax, [e_bios_parameter_block + ebpb_struct.reserved_sectors]    ; <eax> Add the number of reserved sectors
+        add eax, [partition + partition_entry.lba_start]                    ; <eax> Add the parition offset
+        mov di, fat_sector_buffer
+        call disk_read_sector
 
         pop di
         pop ebx
@@ -141,6 +151,7 @@ section .text
         mov bx, [current_offset_in_sector]  ; <ebx>     ebx = offset in sector
         add eax, ebx                        ; <eax>     eax = target offset from sector start
         mov ebx, SECTOR_SIZE                ; <ebx>     divide by size of sector
+        xor edx, edx                        ; <edx>     Clear upper bytes of dividend
         div ebx                             ; <eax, edx>    eax = sector offset, edx = offset in sector
         push eax                            ;           Save sector offset
         push dx                             ;           Save offset in sector
@@ -157,7 +168,28 @@ section .text
         pop ebx
         pop eax
         ret
-        
+
+    ;
+    ; Seek to a byte position in the file
+    ; eax: position in the file
+    ;
+    fat_seek_bytes:
+        push eax
+        push ebx
+        push edx
+
+        xor edx, edx            ; <edx>     Clear upper bytes of dividend
+        xor ebx, ebx            ; <ebx>     Clear divisor
+        mov bx, SECTOR_SIZE     ; <ebx>     divisor = sector size
+        div ebx                 ; <eax, edx>    eax = sector, edx = offset in sector
+
+        call fat_seek_sector    ;           Seek to the sector
+        mov [current_offset_in_sector], dx  ; Update position in sector
+
+        pop edx
+        pop ebx
+        pop eax
+        ret
 
     ; 
     ; Seek to a sector from the start of the file
@@ -175,13 +207,14 @@ section .text
         mov bl, [e_bios_parameter_block + ebpb_struct.sectors_per_cluster] ; <ebx>     Divide sector by sectors per cluster
         div ebx         ; <eax, edx>    eax = cluster index, edx = sector in cluster
 
+    .seek_sector:
         ; Check if seeking backwards
         mov ecx, eax                            ; <ecx>     ecx = target cluster index
         mov ebx, [current_cluster_index]        ; <ebx>     ebx = current cluster index
         cmp ecx, ebx                            ;           Check if current cluster is target
         jne .must_seek                          ;           If it is not seeking must be done
         cmp dl, [current_sector_in_cluster]     ;           Check if current sector in cluster is target
-        jne .done                               ;           If it is not seeking must be done
+        jne .must_seek                          ;           If it is not seeking must be done
         xor dx, dx
         mov [current_offset_in_sector], dx
         jmp .done
@@ -193,16 +226,17 @@ section .text
 
         ; If seeking a cluster further back in the file then reset to first cluster
         mov eax, [first_cluster]    ; <eax>     Reset eax to first cluster
-        xor ebx, ebx                ; <ecx>     Reset cluster index to first cluster
+        xor ebx, ebx                ; <ebx>     Reset cluster index to first cluster
     
     ; Get the cluster for the cluster index
     .seek_cluster:
         cmp ecx, ebx
-        jle .cluster_found          ;           If the target cluster index is equal (less should neve happen) then we have found the cluster
+        jle .cluster_found          ;           If the target cluster index is equal (less should never happen) then we have found the cluster
         call get_next_cluster       ; <eax>     Get the next cluster
         cmp eax, 0x0FFF_FFF7        ;           Anything greater than this is not a valid cluster
         jge .error                  ;           If not a valid sector then throw an error
         inc ebx                     ; <ebx>     Increment the cluster index
+        jmp .seek_cluster
     .cluster_found:
         ; Save seeking information
         mov [current_cluster], eax              ; Save current cluster
@@ -223,6 +257,65 @@ section .text
     .error: 
         mov si, error_invalid_sector
         call hard_error
+
+    ;
+    ; Copy the current sector and advance to the next
+    ; Paramters:
+    ;   es:edi: address to copy to
+    ;   ebx: bytes to copy
+    ;
+    fat_copy_bytes:
+        push eax
+        push ebx
+        push ecx
+        push edx
+        push edi
+        push esi
+
+        mov dx, SECTOR_SIZE             ; <edx>     Save the size of a sector
+        
+        xor ecx, ecx                    ; <ecx>     Clear ecx
+        mov cx,  bx                     ; <ecx>     Store bytes to read in cx
+        add cx, [current_offset_in_sector]  ; <ecx>     Add the offset in sector
+
+        cmp cx, dx                          ; <ecx>     If need to read past the end of a sector
+        cmovg cx, dx                        ; <ecx>     Limit to the end of the sector
+        sub cx, [current_offset_in_sector]  ; <ecx>     Subtract offset in sector to get bytes to read
+
+    .read_loop:
+        sub ebx, ecx                        ; <ebx>     Subtract bytes read from bytes to read
+        xor esi, esi
+        mov si, file_sector_buffer          ; <esi>     Read from file sector buffer
+        add si, [current_offset_in_sector]  ; <esi>     Add offset in sector
+    .copy_loop:
+        add [current_offset_in_sector], ecx ; Update the offset in the sector
+        mov al, [si]        ; <eax> al = byte to copy
+        mov [es:edi], al    ;       Copy byte from al to destination
+        inc edi             ; <edi> Move to next destination byte
+        inc si              ; <esi> Move to next source byte
+        dec cx              ; <ecx> Decrement bytes to move
+        jnz .copy_loop      ;       Copy next byte if there is more
+    
+        cmp dx, [current_offset_in_sector]  ; Check if entire sector read
+        jg .after_advance_sector                       
+        call fat_advance_sector             ; If entire sector read then move to the next one
+
+    .after_advance_sector:
+        test ebx, ebx       ;           Check if more bytes to read
+        jz .read_done       ;           If not then exit
+        mov cx, bx          ; <ecx>     cx = bytes to read
+        cmp cx, dx          ;           Check if reading more than a sector
+        cmovg cx, dx        ; <ecx>     If so then limit to a single sector
+        jmp .read_loop
+
+    .read_done:
+        pop esi
+        pop edi
+        pop edx
+        pop ecx
+        pop ebx
+        pop eax
+        ret
 
     ;
     ; Copy the current sector and advance to the next
@@ -359,7 +452,9 @@ section .text
 
         ; Sector has not been loaded so load it
         mov [current_fat_sector], eax
-        add eax, [e_bios_parameter_block + ebpb_struct.reserved_sectors]    ; <eax> Add the number of reserved sectors
+        xor ebx, ebx
+        mov bx, [e_bios_parameter_block + ebpb_struct.reserved_sectors]
+        add eax, ebx    ; <eax> Add the number of reserved sectors
         add eax, [partition + partition_entry.lba_start]                    ; <eax> Add the parition offset
         mov di, fat_sector_buffer
         call disk_read_sector
@@ -405,6 +500,8 @@ section .text
         ret
 
 section .data
+global dbg_fat_data
+    dbg_fat_data:
     data_section_lba:   dd 0
     current_fat_sector: dd 0
     first_cluster:      dd 0
@@ -421,5 +518,7 @@ section .bss
     partition: resb partition_entry_size
     e_bios_parameter_block: resb ebpb_struct_size
     file_sector_buffer: resb SECTOR_SIZE
+    global dbg_fat_buff
+    dbg_fat_buff:
     fat_sector_buffer:  resb SECTOR_SIZE
     lfn_buffer: resb 512    ;   256 2_byte characters
