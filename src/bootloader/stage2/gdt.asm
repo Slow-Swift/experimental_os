@@ -2,6 +2,7 @@ bits 16
 
 global load_gdt
 global enter_unreal_mode
+global enter_protected_mode
 
 section .text
 
@@ -12,6 +13,28 @@ section .text
         cli
         lgdt [gdt_info]
         ret
+
+    ;
+    ; Enter protected mode
+    ; eax: address to jump to
+    ;
+    enter_protected_mode:
+        mov ebx, eax
+        mov eax, cr0
+        or al, 1
+        mov cr0, eax
+        jmp 0x8:.pmode
+        
+    .pmode:
+        [bits 32]
+        mov ax, 0x10
+        mov ds, ax
+        mov ss, ax
+
+        call ebx
+
+        ret
+        [bits 16]
 
     ; 
     ; Switch into unreal mode 

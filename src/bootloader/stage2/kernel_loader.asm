@@ -19,6 +19,12 @@ global load_program
 
 section .text
 
+    ;
+    ; Load the kernel
+    ; Will search for the kernel in "BOOT/KERNEL.ELF"
+    ; Return:
+    ;   eax: address of kernel entry
+    ;
     kl_load_kernel:
         push ebx
         push edi
@@ -42,6 +48,8 @@ section .text
 
         mov si, kernel_loaded_msg
         call puts
+
+        mov eax, [elf_header + elf_header_struct.entry_pos] ; <eax>     Load the address of the kernel entry
 
         pop esi
         pop edi

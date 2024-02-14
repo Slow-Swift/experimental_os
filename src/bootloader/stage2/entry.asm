@@ -21,6 +21,7 @@ extern fat_copy_sector
 
 extern load_gdt
 extern enter_unreal_mode
+extern enter_protected_mode
 
 extern kl_load_kernel
 
@@ -81,6 +82,7 @@ section .text
         call puts
 
         call kl_load_kernel
+        call enter_protected_mode
 
     prog_end:
     halt:
