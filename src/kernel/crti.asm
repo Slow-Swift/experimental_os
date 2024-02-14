@@ -1,3 +1,5 @@
+[bits 32]
+
 section .init
 global _init
 _init:

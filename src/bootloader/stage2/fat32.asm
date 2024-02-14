@@ -273,22 +273,25 @@ section .text
         push esi
 
         mov dx, SECTOR_SIZE             ; <edx>     Save the size of a sector
+        mov ax, [current_offset_in_sector]; <eax>   Get current offset in sector
         
         xor ecx, ecx                    ; <ecx>     Clear ecx
         mov cx,  bx                     ; <ecx>     Store bytes to read in cx
-        add cx, [current_offset_in_sector]  ; <ecx>     Add the offset in sector
+        add cx, ax                      ; <ecx>     Add the offset in sector
 
-        cmp cx, dx                          ; <ecx>     If need to read past the end of a sector
-        cmovg cx, dx                        ; <ecx>     Limit to the end of the sector
-        sub cx, [current_offset_in_sector]  ; <ecx>     Subtract offset in sector to get bytes to read
+        cmp cx, dx                      ; <ecx>     If need to read past the end of a sector
+        cmovg cx, dx                    ; <ecx>     Limit to the end of the sector
+        sub cx, ax                      ; <ecx>     Subtract offset in sector to get bytes to read
 
     .read_loop:
         sub ebx, ecx                        ; <ebx>     Subtract bytes read from bytes to read
         xor esi, esi
         mov si, file_sector_buffer          ; <esi>     Read from file sector buffer
-        add si, [current_offset_in_sector]  ; <esi>     Add offset in sector
+        add si, ax                          ; <esi>     Add offset in sector
+        mov ax, [current_offset_in_sector]
+        add ax, cx
+        mov [current_offset_in_sector], ax ; Update the offset in the sector
     .copy_loop:
-        add [current_offset_in_sector], ecx ; Update the offset in the sector
         mov al, [si]        ; <eax> al = byte to copy
         mov [es:edi], al    ;       Copy byte from al to destination
         inc edi             ; <edi> Move to next destination byte
@@ -296,7 +299,8 @@ section .text
         dec cx              ; <ecx> Decrement bytes to move
         jnz .copy_loop      ;       Copy next byte if there is more
     
-        cmp dx, [current_offset_in_sector]  ; Check if entire sector read
+        mov ax, [current_offset_in_sector]
+        cmp dx, ax          ; Check if entire sector read
         jg .after_advance_sector                       
         call fat_advance_sector             ; If entire sector read then move to the next one
 
