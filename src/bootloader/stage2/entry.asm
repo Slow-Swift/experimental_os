@@ -25,6 +25,8 @@ extern enter_protected_mode
 
 extern kl_load_kernel
 
+extern detect_mem
+
 ; Used for debugging
 global prog_end
 
@@ -35,7 +37,8 @@ section .entry
         cli
 
         ; Save disk code
-        mov [disk_code], dl
+        mov dword [boot_data_addr + boot_data.next_availiable_mem], boot_data_size + boot_data_addr
+        mov [boot_data_addr + boot_data.disk_code], dl
 
         ; Initialize all registers to zero
         xor eax, eax
@@ -62,7 +65,7 @@ section .text
         call enable_a20
 
         ; Initialize the disk
-        mov dl, [disk_code]
+        mov dl, [boot_data_addr + boot_data.disk_code]
         call disk_initialize
         mov si, disk_initialized_msg
         call puts
@@ -74,6 +77,8 @@ section .text
         call fat_initialize
         mov si, fat_initialized_msg
         call puts
+
+        call detect_mem
 
         call load_gdt
         call enter_unreal_mode
@@ -97,9 +102,6 @@ section .rodata
     boot_folder:    db "BOOT       ", 0
     kernel_name:    db "KERNEL  ELF", 0
     filename:       db "TEST    TXT", 0
-
-section .data
-    disk_code: db 0
 
 section .bss
     disk_test_buffer: resb 512

@@ -29,6 +29,7 @@ objects = env.Object(sources)
 # Create the stage2 program
 stage2 = env.Program('stage2.elf', objects)
 env.Depends(stage2, headers)
+env.Depends(objects, headers)
 
 Export('stage2')
 
