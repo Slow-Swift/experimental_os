@@ -87,6 +87,8 @@ section .text
         call puts
 
         call kl_load_kernel
+
+        mov ecx, boot_data_addr
         call enter_protected_mode
 
     prog_end:

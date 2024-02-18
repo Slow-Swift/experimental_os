@@ -17,6 +17,7 @@ section .text
     ;
     ; Enter protected mode
     ; eax: address to jump to
+    ; ecx: parameter address
     ;
     enter_protected_mode:
         mov ebx, eax
@@ -35,6 +36,7 @@ section .text
         mov ss, ax
 
         cli
+        push ecx
         call ebx
 
         ret

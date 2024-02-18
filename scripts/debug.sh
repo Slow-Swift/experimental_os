@@ -9,13 +9,10 @@ QEMU_ARGS="-S -gdb stdio -m 32 -hda $PWD/$1"
 # b *0x7c00
 # layout asm
 cat > .vscode/.gdb_script.gdb << EOF
-    layout asm
-    layout regs
+    symbol-file $PWD/build/i686_debug/kernel/kernel.elf
     set disassembly-flavor intel
     target remote | qemu-system-i386 $QEMU_ARGS
     set tdesc filename $PWD/scripts/target.xml
-    b *0x1000
-    c
 
 EOF
 
