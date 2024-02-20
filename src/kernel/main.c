@@ -1,18 +1,19 @@
-#include "stdio.h"
 #include "bootdata.h"
-
-#define ASMCALL __attribute__((cdecl))
+#include "defs.h"
+#include <libc/stdio.h>
+#include <arch/i686/vga_text.h>
 
 extern void _init();
 
 void halt();
 
-void ASMCALL Start(BootData* bootData) {
+void ASMCALL Start(BootData* bootData) 
+{
     _init();
 
     MemoryRegion* memoryRegion = (MemoryRegion*)bootData->MemoryMapAddr;
 
-    clear_screen();
+    vga_clear_screen();
     printf("Hello World from the Kernel!\n");
 
     printf("Memory Regions: \n");
