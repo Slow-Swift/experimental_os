@@ -13,7 +13,8 @@ env.Append(
         '-Wl,-Map=' + env.File('kernel.map').path
     ],
     CPPPATH = [
-        env.Dir('.').srcnode()
+        env.Dir('.').srcnode(),
+        env.Dir('./libc').srcnode()
     ],
     ASFLAGS = [ '-I', env.Dir('.').srcnode(), '-f', 'elf']
 )

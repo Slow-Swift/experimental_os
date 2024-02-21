@@ -25,6 +25,12 @@
                     "ignoreFailures": false
                 }
             ],
+            "pipeTransport": {
+                "pipeCwd": "",
+                "pipeProgram": "/usr/bin/bash",
+                "pipeArgs": ["-c"],
+                "debuggerPath": "stdbuf -i0 -o0 -e0 /usr/bin/gdb"
+            },
             "launchCompleteCommand": "None"
         }
     ]

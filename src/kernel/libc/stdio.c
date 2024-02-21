@@ -33,8 +33,10 @@ size_t fwrite(
     const void * restrict ptr, size_t size, size_t nmemb, 
     FILE * restrict stream
 ) {
+    const uint8_t *uint8_ptr = (const uint8_t *)(ptr);
+
     for (size_t i=0; i<nmemb; i++) {
-        if(vfs_write(stream, ptr, size) != size)
+        if(vfs_write(stream, uint8_ptr + size * i, size) != size)
             return i;
     }
     return nmemb;
@@ -70,7 +72,9 @@ int putchar(int c)
 
 int puts(const char *s) 
 {
-    return fputs(s, stdout);
+    int count = fputs(s, stdout);
+    fputc('\n', stdout);
+    return count + 1;
 }
 
 int fprintf(FILE * restrict stream, const char * restrict format, ...) 
@@ -154,3 +158,11 @@ int vsprintf(
     return result;
 }
 
+int fprintbuf(FILE * restrict stream, const void *buffer, size_t count) {
+    const uint8_t* u8Buffer = (const uint8_t*)buffer;
+
+    for(uint16_t i=0; i<count; i++) {
+        fprintf(stream, "%hhx", u8Buffer[i]);
+    }
+    return count;
+}

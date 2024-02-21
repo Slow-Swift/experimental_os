@@ -3,6 +3,7 @@
 #include <hal/vfs.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 // FILE defined in <hal/vfs.h>
 // stdin, stdout, stderr, stddbg defined in <hal/vfs.h>
@@ -258,5 +259,17 @@ int vsprintf(
     char * restrict s, const char * restrict format, va_list arg
 );
 
-void puthex(uint64_t value);
-void clear_screen();
+/**
+ * Output [count] bytes of the buffer pointed to by [buffer] in hexadecimal
+ * form to the stream pointed to by [stream]
+ * 
+ * Parameters:
+ *   stream: The stream to write to
+ *   buffer: The buffer to write
+ *   count: The number of bytes to run
+ * 
+ * Return int:
+ *   The number of bytes of the buffer actually written. Only less than count
+ *   if there was an error.
+*/
+int fprintbuf(FILE * restrict stream, const void *buffer, size_t count);

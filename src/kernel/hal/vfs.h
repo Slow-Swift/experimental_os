@@ -23,4 +23,4 @@ extern FILE* stddbg;
  * Returns:
  *   int: The number of bytes actually written
 */
-int vfs_write(FILE* file, uint8_t* data, size_t size);
+int vfs_write(FILE *file, const uint8_t *data, size_t size);

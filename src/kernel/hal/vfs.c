@@ -1,4 +1,6 @@
 #include "vfs.h"
+
+#include <arch/i686/e9.h>
 #include <arch/i686/vga_text.h>
 
 enum StandardStreams {
@@ -18,7 +20,7 @@ FILE *stdout = &stdout_file;
 FILE *stderr = &stderr_file;
 FILE *stddbg = &stddbg_file;
 
-int vfs_write(FILE* file, uint8_t* data, size_t size) {
+int vfs_write(FILE *file, const uint8_t *data, size_t size) {
     switch (file->file_descriptor) {
     case STDIN:
         return 0;
@@ -26,6 +28,11 @@ int vfs_write(FILE* file, uint8_t* data, size_t size) {
     case STDERR:
         for (size_t i=0; i<size; i++) {
             vga_putc(data[i]);
+        }
+        return size;
+    case STDDBG:
+        for (size_t i=0; i<size; i++) {
+            e9_putc(data[i]);
         }
         return size;
     default:

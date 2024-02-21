@@ -1,4 +1,5 @@
 #include "bootdata.h"
+#include "debug.h"
 #include "defs.h"
 #include <libc/stdio.h>
 #include <arch/i686/vga_text.h>
@@ -14,22 +15,24 @@ void ASMCALL Start(BootData* bootData)
     MemoryRegion* memoryRegion = (MemoryRegion*)bootData->MemoryMapAddr;
 
     vga_clear_screen();
-    printf("Hello World from the Kernel!\n");
+    printf("Kernel Started\n");
 
     printf("Memory Regions: \n");
     printf("|             BASE |              END |           LENGTH |     TYPE |\n");
     for (int i=0; i<bootData->MemRegionCount; i++) {
         printf("| %16llx | %16llx | %16llx | %8lx |\n", memoryRegion[i].BaseAddress, memoryRegion[i].BaseAddress + memoryRegion[i].Length, memoryRegion[i].Length, memoryRegion[i].Type);
     }
+
+    log_debug("MAIN", "Debug Message");
+    log_info("MAIN", "Info Message");
+    log_warn("MAIN", "Warning Message");
+    log_error("MAIN", "Error Message");
+    log_critical("MAIN", "Critical Message");
     
-    // printf("Memory Region Count: 0x%lx\n", bootData->MemRegionCount);
-    // printf("  Region 1:\n");
-    // printf("    Base:   %#llx\n", memoryRegion->BaseAddress);
-    // printf("    Length: %#llx\n", memoryRegion->Length);
-    // printf("    Type:   %#lx\n", memoryRegion->Type);
     halt();
 }
 
 void halt() {
+    printf("Halting");
     for(;;);
 }
