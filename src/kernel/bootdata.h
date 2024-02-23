@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 typedef struct {
-    uint32_t Reserved;
+    uint32_t FirstAvailiableMemory;
     uint32_t MemoryMapAddr;
     uint32_t MemRegionCount;
     uint8_t MemRegionStructSize;
