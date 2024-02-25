@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+static const size_t malloc_align_size = 8;
+
 extern char __start;
 extern char __end;
 
@@ -20,6 +22,12 @@ typedef struct MemoryNode {
     unsigned int size;
     struct MemoryNode* next;
 } MemoryNode;
+
+typedef struct {
+    size_t total_size;
+    size_t requested_size;
+    char offset;
+} AllocatedRegionHeader;
 
 enum MemoryRegionType {
     AVAILIABLE = 1,
@@ -43,7 +51,7 @@ static MemoryNode* start;
 static void free_memory(pointer_t base, long long int length) 
 {
     pointer_t end = base + length;
-    log_info("Memory", "Freeing memory from %lx to %lx", base, end);
+    log_info("Memory", "Freeing %llx bytes from %lx to %lx", length, base, end);
 
     MemoryNode* previous = NULL;
     MemoryNode* next = start;
@@ -54,16 +62,14 @@ static void free_memory(pointer_t base, long long int length)
         next = next->next;
     }
 
-    MemoryNode* current;
+    MemoryNode* current = (MemoryNode*)base;
 
     // If freeing memory will form a continuous region with the previous
     // section then combine them
-    if (previous != NULL && (pointer_t)previous + previous->size >= base) {
+    if (previous != NULL && (pointer_t)previous + previous->size >= base)
         current = previous;
-    } else {
-        current = (MemoryNode*)base;
+    else if (previous != NULL)
         previous->next = current;
-    }
 
     // Save information about the freed memory
     current->size = end - (pointer_t)current;
@@ -73,7 +79,7 @@ static void free_memory(pointer_t base, long long int length)
     // then combine them
     if (next != NULL && (pointer_t)next <= end) {
         pointer_t next_end = (pointer_t)next + next->size;
-        current->size = end - (pointer_t)current;
+        current->size = next_end - (pointer_t)current;
         current->next = next->next;
     }
 
@@ -265,7 +271,8 @@ static long long int free_availiable_regions(
     return availiable_bytes;
 }
 
-long long int memory_initialize(BootData* boot_data) {
+long long int memory_initialize(BootData* boot_data) 
+{
     log_info("Memory", "Initializing Memory");
 
     MemoryRegion* memory_regions = (MemoryRegion*)boot_data->MemoryMapAddr;
@@ -281,4 +288,114 @@ long long int memory_initialize(BootData* boot_data) {
     log_info("Memory", "Availiable Memory: %#llx\n", availiable_bytes);
     printf("Availiable Memory: %#llx\n", availiable_bytes);
     return availiable_bytes;
+}
+
+void* aligned_alloc(size_t alignment, size_t size) 
+{
+    if (size == 0) return NULL;
+
+    MemoryNode* best_prev = NULL;
+    MemoryNode* best_fit = NULL;
+    MemoryNode* previous = NULL;
+    MemoryNode* current = start;
+    char alignment_offset = 0;
+
+    while (current != NULL) {
+        // If the best_fit is clearly better than the current node then skip
+        // this one
+        if (best_fit != NULL && best_fit->size <= current->size) {
+            previous = current;
+            current = current->next;
+            continue;
+        }
+        
+        // Determine size required for header and alignment
+        int offset = sizeof(AllocatedRegionHeader);
+        int align_offset = 
+            alignment - ((pointer_t)current + offset) % alignment;
+        offset += (alignment - align_offset) % alignment;
+
+        // If the size is large enough then it becomes the new best fit
+        if (size + offset <= current->size) {
+            alignment_offset = offset;
+            best_fit = current;
+            best_prev = previous;
+        }
+        
+        previous = current;
+        current = current->next;
+    }
+
+    if (best_fit == NULL) return NULL;
+
+    // Update the free memory list
+    MemoryNode* next = best_fit->next;
+    size_t size_with_header = size + alignment_offset;
+    if (size_with_header + sizeof(MemoryNode) < best_fit->size) {
+        next = (MemoryNode*)((pointer_t)(best_fit) + size_with_header);
+        next->next = best_fit->next;
+        next->size = best_fit->size - size_with_header;
+    } else {
+        size_with_header = best_fit->size;
+    }
+
+    if (best_prev == NULL) {
+        start = next;
+    } else {
+        best_prev->next = next;
+    }
+
+    log_info("Memory", "Allocating %lx bytes from %p to %x", 
+        size_with_header, best_fit, (pointer_t)best_fit + size_with_header);
+
+    AllocatedRegionHeader* header = (AllocatedRegionHeader*)best_fit;
+    header->total_size = size_with_header;
+    header->requested_size = size;
+    header->offset = alignment_offset;
+
+    pointer_t allocated_start = (pointer_t)header + alignment_offset;
+    *((char*)(allocated_start-1)) = alignment_offset;
+
+    return (void*)(allocated_start);
+}
+
+void* calloc(size_t n_memb, size_t size) {
+    return aligned_alloc(malloc_align_size, size * n_memb);
+}
+
+void* malloc(size_t size) {
+    return aligned_alloc(malloc_align_size, size);
+}
+
+void free(void* ptr) {
+    pointer_t start = (pointer_t)ptr;
+    char align_offset = *(char*)(start-1);
+
+    AllocatedRegionHeader* header = 
+        (AllocatedRegionHeader*)(start-align_offset);
+
+    free_memory((pointer_t)header, header->total_size);
+}
+
+void* realloc(void* ptr, size_t size) {
+    pointer_t start = (pointer_t)ptr;
+    char align_offset = *(char*)(start-1);
+
+    AllocatedRegionHeader* header = 
+        (AllocatedRegionHeader*)(start-align_offset);
+
+    void* new_object = malloc(size);
+
+    size_t to_copy = header->requested_size < size 
+                        ? header->requested_size 
+                        : size;
+    
+    char* old_bytes = (char*)ptr;
+    char* new_bytes = (char*)new_object;
+    for (int i=0; i<to_copy; i++)
+        old_bytes[i] = new_bytes[i];
+
+    free(ptr);
+
+    return new_object;
 }
