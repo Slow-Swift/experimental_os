@@ -1,12 +1,14 @@
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-void pic_configure(int offset1, int offset2, bool auto_eoi);
-void pic_mask(int irq_line);
-void pic_unmask(int irq_line);
-uint16_t pic_get_irr();
-uint16_t pic_get_isr();
-void pic_send_EOI(int irq_line);
-void pic_disable();
+typedef struct {
+    const char* Name;
+    bool (*Probe)();
+    void (*Initialize)(uint8_t offsetPic1, uint8_t offsetPic2, bool autoEoi);
+    void (*Disable)();
+    void (*SendEndOfInterrupt)(int irq);
+    void (*Mask)(int irq);
+    void (*Unmask)(int irq);
+} PICDriver;

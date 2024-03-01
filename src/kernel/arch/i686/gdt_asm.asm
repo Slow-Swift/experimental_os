@@ -1,7 +1,10 @@
 [bits 32]
 
-global i686_gdt_load
-i686_gdt_load:
+;
+; void i686_GDT_Load(GDTDescriptor* descriptor, uint16_t codeSegment, uint16_t dataSegment);
+;
+global i686_GDT_Load
+i686_GDT_Load:
     ; Make new callframe
     push ebp        ; Save old callframe
     mov ebp, esp    ; Initialize new callframe
@@ -17,6 +20,7 @@ i686_gdt_load:
     retf
 
 .reload_cs:
+
     ; Reload data segment
     mov ax, [ebp + 16] ; Data segment in arg[2]
     mov ds, ax

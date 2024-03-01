@@ -23,3 +23,9 @@ global enable_interrupts
 enable_interrupts:
     sti
     ret
+
+global i686_Panic
+i686_Panic:
+    [bits 32]
+    cli
+    hlt

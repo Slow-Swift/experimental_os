@@ -1,11 +1,14 @@
-global idt_load
-idt_load:
-    ; Make new callframe
-    push ebp
-    mov ebp, esp
+[bits 32]
 
-    ; load idt
-    mov eax, [ebp + 8]  ; ldt address in arg[0]
+; void __attribute__((cdecl)) i686_IDT_Load(IDTDescriptor* idtDescriptor);
+global i686_IDT_Load
+i686_IDT_Load:
+    ; Make new callframe
+    push ebp        ; Save old callframe
+    mov ebp, esp    ; Initialize new callframe
+
+    ; Load idt
+    mov eax, [ebp + 8]  ; Interrupt descriptor table in arg[0]
     lidt [eax]
 
     ; Restore old callframe

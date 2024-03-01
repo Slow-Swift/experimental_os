@@ -1,66 +1,43 @@
 #include "idt.h"
 
-#include <stdint.h>
-#include <defs.h>
-#include "gdt.h"
+#define FLAG_SET(x, flag) (x) |= (flag)
+#define FLAG_UNSET(x, flag) (x) &= ~(flag)
+
+typedef struct
+{
+    uint16_t BaseLow;
+    uint16_t SegmentSelector;
+    uint8_t Reserved;
+    uint8_t Flags;
+    uint16_t BaseHigh;
+} __attribute__((packed)) IDTEntry;
 
 typedef struct {
-    uint16_t offset_low;
-    uint16_t segment_selector;
-    uint8_t reserved;
-    uint8_t flags;
-    uint16_t offset_high;
-} __attribute__((packed)) IDT_Entry;
+    uint16_t Limit;
+    IDTEntry* Ptr;
+} __attribute__((packed)) IDTDescriptor;
 
-typedef struct {
-    uint16_t size;
-    IDT_Entry* offset;
-} IDT_Descriptor;
+IDTEntry g_IDT[256];
+IDTDescriptor g_IDTDescriptor = { sizeof(g_IDT) - 1, g_IDT };
 
-__attribute__((aligned(0x10)))
-static IDT_Entry idt[256];
-static IDT_Descriptor idt_descriptor = { sizeof(idt) - 1, idt };
+void __attribute__((cdecl)) i686_IDT_Load(IDTDescriptor* idtDescriptor);
 
-void ASMCALL idt_load(IDT_Descriptor* descriptor);
-
-void idt_set_gate(
-    int interrupt, void* base, uint16_t segment_descriptor, uint8_t flags
-) {
-    idt[interrupt].offset_low = ((uint32_t)base) & 0xFFFF;
-    idt[interrupt].offset_high = ((uint32_t)base >> 16) & 0xFFFF;
-    idt[interrupt].segment_selector = segment_descriptor;
-    idt[interrupt].reserved = 0;
-    idt[interrupt].flags = flags;
+void i686_IDT_SetGate(int interrupt, void* base, uint16_t segmentDescriptor, uint8_t flags) {
+    g_IDT[interrupt].BaseLow = ((uint32_t)base) & 0xFFFF;
+    g_IDT[interrupt].SegmentSelector = segmentDescriptor;
+    g_IDT[interrupt].Reserved = 0;
+    g_IDT[interrupt].Flags = flags;
+    g_IDT[interrupt].BaseHigh = ((uint32_t)base >> 16) & 0xFFFF;
 }
 
-void idt_enable_gate(int interrupt) 
-{
-    idt[interrupt].flags |= IDT_FLAG_PRESENT;
+void i686_IDT_EnableGate(int interrupt) {
+    FLAG_SET(g_IDT[interrupt].Flags, IDT_FLAG_PRESENT);
 }
 
-void idt_disable_gate(int interrupt) 
-{
-    idt[interrupt].flags &= ~IDT_FLAG_PRESENT;
+void i686_IDT_DisableGate(int interrupt) {
+    FLAG_UNSET(g_IDT[interrupt].Flags, IDT_FLAG_PRESENT);
 }
 
-void idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags) {
-    IDT_Entry* descriptor = &idt[vector];
- 
-    descriptor->offset_low        = (uint32_t)isr & 0xFFFF;
-    descriptor->segment_selector      = GDT_CODE_SEGMENT; // this value can be whatever offset your kernel code selector is in your GDT
-    descriptor->flags     = flags;
-    descriptor->offset_high       = (uint32_t)isr >> 16;
-    descriptor->reserved       = 0;
-}
-
-extern void* isr_stub_table[];
-
-void idt_initialize() {
-    idt_descriptor.offset = &idt[0];
-    idt_descriptor.size = (uint16_t)sizeof(IDT_Entry) * 256 - 1;
- 
-    for (uint8_t vector = 0; vector < 32; vector++) {
-        idt_set_descriptor(vector, isr_stub_table[vector], 0x8E);
-    }
-    idt_load(&idt_descriptor);
+void i686_IDT_Initialize() {
+    i686_IDT_Load(&g_IDTDescriptor);
 }

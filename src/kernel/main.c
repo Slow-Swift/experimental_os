@@ -7,10 +7,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arch/i686/io.h>
+#include <arch/i686/irq.h>
+
 
 extern void _init();
 
 void halt();
+
+void timer(Registers* regs) {
+    printf(".");
+}
 
 void ASMCALL Start(BootData* boot_data) 
 {
@@ -26,6 +32,9 @@ void ASMCALL Start(BootData* boot_data)
     hal_initialize();
 
     printf("Initialized HAL\n");
+
+    i686_IRQ_RegisterHandler(0, timer);
+
 
     // enable_interrupts();
 

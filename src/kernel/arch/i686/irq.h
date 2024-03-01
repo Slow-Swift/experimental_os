@@ -2,7 +2,7 @@
 
 #include "isr.h"
 
-typedef void (*IRQ_Handler)(Registers* regs);
+typedef void (*IRQHandler)(Registers* regs);
 
-void irq_initialize();
-void irq_register_handler(int irq, IRQ_Handler handler);
+void i686_IRQ_Initialize();
+void i686_IRQ_RegisterHandler(int irq, IRQHandler handler);

@@ -1,13 +1,13 @@
 #include "isr.h"
-
-#include <debug.h>
 #include "idt.h"
+#include "gdt.h"
+#include "io.h"
 #include <stddef.h>
 #include <stdio.h>
 
-ISR_Handler handlers[256];
+ISRHandler g_ISRHandlers[256];
 
-static const char* const exception_names[] = {
+static const char* const g_Exceptions[] = {
     "Divide by zero error",
     "Debug",
     "Non-maskable Interrupt",
@@ -41,37 +41,37 @@ static const char* const exception_names[] = {
     ""
 };
 
-void isr_handle_interrupt(Registers* regs) {
-    log_debug("ISR", "Interrup Called");
-    if (handlers[regs->interrupt] != NULL) {
-        handlers[regs->interrupt](regs);
-    } else if (regs->interrupt >= 0x20) {
-        printf("Unhandled interrupt %x!\n", regs->interrupt);
-    } else {
-        panic(
-            "ISR", 
-            "Unhandled exception %x, %s!\n" \
-            "  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n" \
-            "  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n" \
-            "  interrupt=%x  errorcode=%x\n",
-            regs->interrupt, exception_names[regs->interrupt],
-            regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi,
-            regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds, 
-            regs->ss, regs->interrupt, regs->error
-        );     
+void i686_ISR_InitializeGates();
+
+void i686_ISR_Initialize() {
+    i686_ISR_InitializeGates();
+    for (int i = 0; i < 256; i++)
+        i686_IDT_EnableGate(i);
+}
+
+void __attribute__((cdecl)) i686_ISR_Handler(Registers* regs) {
+    if (g_ISRHandlers[regs->interrupt] != NULL)
+        g_ISRHandlers[regs->interrupt](regs);
+    else if (regs->interrupt >= 32)
+        printf("Unhandled interrupt %d!\n", regs->interrupt);
+    else {
+        printf("Unhandled exception %d %s\n", regs->interrupt, g_Exceptions[regs->interrupt]);
+
+        printf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n",
+                regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
+
+        printf("  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
+                regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds, regs->ss);
+
+        printf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
+
+        printf("KERNEL PANIC!\n");
+        i686_Panic();
     }
 }
 
-void isr_register_handler(int interrupt, ISR_Handler handler) {
-    handlers[interrupt] = handler;
-    idt_enable_gate(interrupt);
-}
-
-void isr_initialize_gates();
-
-void isr_initialize() {
-    isr_initialize_gates();
-    for (int i = 0; i < 256; i++) {
-        idt_enable_gate(i);
-    }
+void i686_ISR_RegisterHandler(int interrupt, ISRHandler handler)
+{
+    g_ISRHandlers[interrupt] = handler;
+    i686_IDT_EnableGate(interrupt);
 }
