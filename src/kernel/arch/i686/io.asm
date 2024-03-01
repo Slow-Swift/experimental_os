@@ -13,3 +13,13 @@ in_byte:
     xor eax, eax
     in al, dx
     ret
+
+global disable_interrupts
+disable_interrupts:
+    cli
+    ret
+
+global enable_interrupts
+enable_interrupts:
+    sti
+    ret

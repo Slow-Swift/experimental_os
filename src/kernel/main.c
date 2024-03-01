@@ -1,9 +1,12 @@
+#include <arch/i686/apic.h>
 #include <arch/i686/vga_text.h>
 #include "bootdata.h"
 #include "debug.h"
 #include "defs.h"
+#include <hal/hal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <arch/i686/io.h>
 
 extern void _init();
 
@@ -20,17 +23,12 @@ void ASMCALL Start(BootData* boot_data)
 
     memory_initialize(boot_data);
 
-    void* m1 = malloc(16);
-    void* m2 = malloc(48);
-    void* m3 = malloc(10);
-    free(m1);
-    free(m2);
-    m1 = malloc(48);
-    m2 = malloc(16);
-    free(m2);
-    free(m1);
-    free(m3);
-    
+    hal_initialize();
+
+    printf("Initialized HAL\n");
+
+    // enable_interrupts();
+
     halt();
 }
 

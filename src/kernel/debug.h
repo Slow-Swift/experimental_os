@@ -36,6 +36,8 @@ void debug_buffer(const char *msg, const void *buffer, size_t count);
 */
 void logf(const char *module, DebugLevel level, const char *format, ...);
 
+void panic(const char *module, char *format, ...);
+
 /**
  * MACRO. Equivalent to logf with LVL_DEBUG as the level.
 */

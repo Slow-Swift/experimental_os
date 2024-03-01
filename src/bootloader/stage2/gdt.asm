@@ -57,7 +57,7 @@ section .text
         jmp 0x18:.pmode
 
     .pmode:
-        mov bx, 0x10    ; Select unreal data descriptor
+        mov bx, 0x20    ; Select unreal data descriptor
         mov ds, bx
 
         ; Swich out of protected mode
@@ -71,6 +71,7 @@ section .text
         pop eax
         ret
 
+    align 16
     gdt_data:      
             ; NULL descriptor
             dq 0
@@ -96,15 +97,15 @@ section .text
             dw 0                    ; base (bits 0-15) = 0x0
             db 0                    ; base (bits 16-23) = 0x0
             db 10011010b            ; access (present, ring 0, code segment, executable, direction 0, readable)
-            db 00001111b            ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
+            db 10001111b            ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
             db 0                    ; base high
 
-            ; 32-bit data segment
+            ; 16-bit data segment
             dw 0x0FFFF              ; limit (lower 16 bits) = 0xFFFFF
             dw 0                    ; base (bits 0-15) = 0x0
             db 0                    ; base (bits 16-23) = 0x0
             db 10010010b            ; access (present, ring 0, data segment, executable, direction 0, writeable)
-            db 00001111b            ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
+            db 10001111b            ; granularity (1b pages, 16-bit pmode) + limit (bits 16-19)
             db 0                    ; base high
 
     gdt_info:  

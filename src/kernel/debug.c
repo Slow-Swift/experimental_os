@@ -32,3 +32,27 @@ void logf(const char *module, DebugLevel level, const char *format, ...) {
 
     va_end(args);
 }
+
+void panic(const char *module, char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    fputs(log_severity_colors[LVL_CRITICAL], stddbg);
+    fprintf(stddbg, "Panicking:\n  ");
+    fprintf(stddbg, "[%s] ", module);
+    vfprintf(stddbg, format, args);
+    fputc('\n', stddbg);
+    fprintf(stderr, "Panic Halt");
+    fputs(color_reset, stddbg);
+    fputc('\n', stddbg);
+
+    fprintf(stderr, "Panicking:\n  ");
+    fprintf(stderr, "[%s] ", module);
+    vfprintf(stderr, format, args);
+    fputc('\n', stderr);
+    fprintf(stderr, "Panic Halt");
+
+    va_end(args);
+
+    for (;;);
+}
