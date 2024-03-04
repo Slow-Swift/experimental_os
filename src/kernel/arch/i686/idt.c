@@ -5,39 +5,39 @@
 
 typedef struct
 {
-    uint16_t BaseLow;
-    uint16_t SegmentSelector;
-    uint8_t Reserved;
-    uint8_t Flags;
-    uint16_t BaseHigh;
-} __attribute__((packed)) IDTEntry;
+    uint16_t base_low;
+    uint16_t segment_selector;
+    uint8_t reserved;
+    uint8_t flags;
+    uint16_t base_high;
+} __attribute__((packed)) IDT_Entry;
 
 typedef struct {
-    uint16_t Limit;
-    IDTEntry* Ptr;
-} __attribute__((packed)) IDTDescriptor;
+    uint16_t limit;
+    IDT_Entry* base;
+} __attribute__((packed)) IDT_Descriptor;
 
-IDTEntry g_IDT[256];
-IDTDescriptor g_IDTDescriptor = { sizeof(g_IDT) - 1, g_IDT };
+IDT_Entry idt[256];
+IDT_Descriptor idt_descriptor = { sizeof(idt) - 1, idt };
 
-void __attribute__((cdecl)) i686_IDT_Load(IDTDescriptor* idtDescriptor);
+void __attribute__((cdecl)) idt_load(IDT_Descriptor* idt_descriptor);
 
-void i686_IDT_SetGate(int interrupt, void* base, uint16_t segmentDescriptor, uint8_t flags) {
-    g_IDT[interrupt].BaseLow = ((uint32_t)base) & 0xFFFF;
-    g_IDT[interrupt].SegmentSelector = segmentDescriptor;
-    g_IDT[interrupt].Reserved = 0;
-    g_IDT[interrupt].Flags = flags;
-    g_IDT[interrupt].BaseHigh = ((uint32_t)base >> 16) & 0xFFFF;
+void idt_set_gate(int interrupt, void* base, uint16_t segmentDescriptor, uint8_t flags) {
+    idt[interrupt].base_low = ((uint32_t)base) & 0xFFFF;
+    idt[interrupt].segment_selector = segmentDescriptor;
+    idt[interrupt].reserved = 0;
+    idt[interrupt].flags = flags;
+    idt[interrupt].base_high = ((uint32_t)base >> 16) & 0xFFFF;
 }
 
-void i686_IDT_EnableGate(int interrupt) {
-    FLAG_SET(g_IDT[interrupt].Flags, IDT_FLAG_PRESENT);
+void idt_enable_gate(int interrupt) {
+    idt[interrupt].flags |= IDT_FLAG_PRESENT;
 }
 
-void i686_IDT_DisableGate(int interrupt) {
-    FLAG_UNSET(g_IDT[interrupt].Flags, IDT_FLAG_PRESENT);
+void idt_disable_gate(int interrupt) {
+    idt[interrupt].flags &= ~IDT_FLAG_PRESENT;
 }
 
-void i686_IDT_Initialize() {
-    i686_IDT_Load(&g_IDTDescriptor);
+void idt_initialize() {
+    idt_load(&idt_descriptor);
 }

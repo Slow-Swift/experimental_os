@@ -67,24 +67,24 @@ void write_register(uint32_t reg_offset, uint32_t value) {
 }
 
 void apic_initialize() {
-    if (!is_apic_supported()) {
-        printf("APIC is not Supported\n");
-        return;
-    }
+    // if (!is_apic_supported()) {
+    //     printf("APIC is not Supported\n");
+    //     return;
+    // }
 
 
-    pic_configure(0x20, 0x28, false);
-    pic_disable();
-    printf("Disabled PIC\n");
+    // pic_configure(0x20, 0x28, false);
+    // pic_disable();
+    // printf("Disabled PIC\n");
     
-    apic_base = get_apic_base();
+    // apic_base = get_apic_base();
 
-    // Set the apic base to ensure enabled bit is set
-    set_apic_base(apic_base);
+    // // Set the apic base to ensure enabled bit is set
+    // set_apic_base(apic_base);
 
-    // Set the Spurious Interrupt Vector Register to 0x1FF
-    // 0x100 to enable the APIC and 0xFF as the spurious interrupt number.
-    write_register(0xF0, 0x1FF);
+    // // Set the Spurious Interrupt Vector Register to 0x1FF
+    // // 0x100 to enable the APIC and 0xFF as the spurious interrupt number.
+    // write_register(0xF0, 0x1FF);
 
-    printf("Enabled APIC\n");
+    // printf("Enabled APIC\n");
 }

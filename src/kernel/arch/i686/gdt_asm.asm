@@ -1,10 +1,10 @@
 [bits 32]
 
 ;
-; void i686_GDT_Load(GDTDescriptor* descriptor, uint16_t codeSegment, uint16_t dataSegment);
+; void gdt_load(GDT_Descriptor* descriptor, uint16_t code_segment, uint16_t data_segment);
 ;
-global i686_GDT_Load
-i686_GDT_Load:
+global gdt_load
+gdt_load:
     ; Make new callframe
     push ebp        ; Save old callframe
     mov ebp, esp    ; Initialize new callframe

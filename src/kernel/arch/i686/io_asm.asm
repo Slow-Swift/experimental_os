@@ -1,5 +1,7 @@
 [bits 32]
 
+%define UNUSED_PORT 0x08
+
 global out_byte
 out_byte:  
     mov dx, [esp + 4]
@@ -14,6 +16,13 @@ in_byte:
     in al, dx
     ret
 
+global io_wait
+io_wait:
+    xor dx, dx
+    mov al, UNUSED_PORT
+    out dx, al
+    ret
+
 global disable_interrupts
 disable_interrupts:
     cli
@@ -24,8 +33,7 @@ enable_interrupts:
     sti
     ret
 
-global i686_Panic
-i686_Panic:
-    [bits 32]
+global panic_stop
+panic_stop:
     cli
     hlt

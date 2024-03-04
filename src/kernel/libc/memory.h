@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 /**
- * Initialize the memory manager.
+ * initialize the memory manager.
  * 
  * Parameters:
  *   boot_data: The information passed by the bootloader

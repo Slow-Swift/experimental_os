@@ -9,7 +9,6 @@
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
 
-
 extern void _init();
 
 void halt();
@@ -33,15 +32,11 @@ void ASMCALL Start(BootData* boot_data)
 
     printf("Initialized HAL\n");
 
-    i686_IRQ_RegisterHandler(0, timer);
-
-
-    // enable_interrupts();
+    irq_register_handler(0, timer);
 
     halt();
 }
 
 void halt() {
-    printf("Halting");
     for(;;);
 }

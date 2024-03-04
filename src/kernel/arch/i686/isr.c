@@ -5,9 +5,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
-ISRHandler g_ISRHandlers[256];
+static ISR_Handler isr_handlers[256];
 
-static const char* const g_Exceptions[] = {
+static const char* const exception_names[] = {
     "Divide by zero error",
     "Debug",
     "Non-maskable Interrupt",
@@ -41,21 +41,21 @@ static const char* const g_Exceptions[] = {
     ""
 };
 
-void i686_ISR_InitializeGates();
+void isr_initialize_gates();
 
-void i686_ISR_Initialize() {
-    i686_ISR_InitializeGates();
+void isr_initialize() {
+    isr_initialize_gates();
     for (int i = 0; i < 256; i++)
-        i686_IDT_EnableGate(i);
+        idt_enable_gate(i);
 }
 
-void __attribute__((cdecl)) i686_ISR_Handler(Registers* regs) {
-    if (g_ISRHandlers[regs->interrupt] != NULL)
-        g_ISRHandlers[regs->interrupt](regs);
+void __attribute__((cdecl)) isr_handler_common(Registers *regs) {
+    if (isr_handlers[regs->interrupt] != NULL)
+        isr_handlers[regs->interrupt](regs);
     else if (regs->interrupt >= 32)
         printf("Unhandled interrupt %d!\n", regs->interrupt);
     else {
-        printf("Unhandled exception %d %s\n", regs->interrupt, g_Exceptions[regs->interrupt]);
+        printf("Unhandled exception %d %s\n", regs->interrupt, exception_names[regs->interrupt]);
 
         printf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n",
                 regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
@@ -66,12 +66,12 @@ void __attribute__((cdecl)) i686_ISR_Handler(Registers* regs) {
         printf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
 
         printf("KERNEL PANIC!\n");
-        i686_Panic();
+        panic_stop();
     }
 }
 
-void i686_ISR_RegisterHandler(int interrupt, ISRHandler handler)
+void isr_register_handler(int interrupt, ISR_Handler handler)
 {
-    g_ISRHandlers[interrupt] = handler;
-    i686_IDT_EnableGate(interrupt);
+    isr_handlers[interrupt] = handler;
+    idt_enable_gate(interrupt);
 }

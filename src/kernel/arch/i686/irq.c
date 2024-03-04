@@ -9,50 +9,50 @@
 
 #define PIC_REMAP_OFFSET    0x20
 
-IRQHandler g_IRQHandlers[16];
-static const PICDriver* g_Driver = NULL;
+IRQHandler irq_handlers[16];
+static const PIC_Driver* driver = NULL;
 
-void i686_IRQ_Handler(Registers* regs) {
+void irq_handler(Registers *regs) {
     int irq = regs->interrupt - PIC_REMAP_OFFSET;
 
-    if (g_IRQHandlers[irq] != NULL) {
-        g_IRQHandlers[irq](regs);
+    if (irq_handlers[irq] != NULL) {
+        irq_handlers[irq](regs);
     } 
     else {
         printf("Unhandled IRQ %d\n", irq);
     }
 
-    g_Driver->SendEndOfInterrupt(irq);
+    driver->send_eoi(irq);
 }
 
-void i686_IRQ_Initialize() {
-    const PICDriver* drivers[] = {
-        i8259_GetDriver(),
+void irq_initialize() {
+    const PIC_Driver* drivers[] = {
+        i8259_get_driver(),
     };
 
     for (int i=0; i<SIZE(drivers); i++) {
-        if (drivers[i]->Probe()) {
-            g_Driver = drivers[i];
+        if (drivers[i]->probe()) {
+            driver = drivers[i];
         }
     }
 
-    if (g_Driver == NULL) {
+    if (driver == NULL) {
         printf("Warning: No PIC found!");
         return;
     }
 
-    printf("Using PIC Driver: %s\n", g_Driver->Name);
-    g_Driver->Initialize(PIC_REMAP_OFFSET, PIC_REMAP_OFFSET + 8, false);
+    printf("Using PIC Driver: %s\n", driver->name);
+    driver->initialize(PIC_REMAP_OFFSET, PIC_REMAP_OFFSET + 8, false);
 
     for (int i=0; i<16; i++)
-        i686_ISR_RegisterHandler(PIC_REMAP_OFFSET + i, i686_IRQ_Handler);
+        isr_register_handler(PIC_REMAP_OFFSET + i, irq_handler);
 
-    i686_EnableInterrupts();
+    enable_interrupts();
 
-    g_Driver->Unmask(0);
-    g_Driver->Unmask(1);
+    driver->unmask(0);
+    driver->unmask(1);
 }
 
-void i686_IRQ_RegisterHandler(int irq, IRQHandler handler) {
-    g_IRQHandlers[irq] = handler;
+void irq_register_handler(int irq, IRQHandler handler) {
+    irq_handlers[irq] = handler;
 }

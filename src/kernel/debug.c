@@ -1,5 +1,6 @@
 #include "debug.h"
 
+#include <arch/i686/io.h>
 #include <stdio.h>
 
 static const char* const log_severity_colors[] = {
@@ -34,6 +35,8 @@ void logf(const char *module, DebugLevel level, const char *format, ...) {
 }
 
 void panic(const char *module, char *format, ...) {
+    disable_interrupts();
+    
     va_list args;
     va_start(args, format);
 

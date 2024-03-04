@@ -18,7 +18,7 @@ typedef enum {
 
 } IDT_FLAGS;
 
-void i686_IDT_Initialize();
-void i686_IDT_EnableGate(int interrupt);
-void i686_IDT_DisableGate(int interrupt);
-void i686_IDT_SetGate(int interrupt, void* base, uint16_t segmentDescriptor, uint8_t flags);
+void idt_initialize();
+void idt_enable_gate(int interrupt);
+void idt_disable_gate(int interrupt);
+void idt_set_gate(int interrupt, void* base, uint16_t segmentDescriptor, uint8_t flags);

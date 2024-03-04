@@ -66,7 +66,7 @@
  * size is specified by [size] to the stream pointed to by [stream].
  * 
  * Parameters:
- *   ptr: Ptr to the start of the array
+ *   ptr: base to the start of the array
  *   size: The size of a member of the array
  *   nmemb: The number of memebers to copy
  *   stream: The file stream to write to

@@ -3,19 +3,19 @@
 
 typedef struct
 {
-    uint16_t LimitLow;          // Limit (bits 0-15)
-    uint16_t BaseLow;           // Base (bits 0-15)
-    uint8_t BaseMiddle;         // Base (bits 16-23)
-    uint8_t Access;             // Access
-    uint8_t FlagsLimitHi;       // Limit (bits 16-19) / flags
-    uint8_t BaseHigh;           // Base (bits 24-31)
-} __attribute__((packed)) GDTEntry;
+    uint16_t limit_low;          // limit (bits 0-15)
+    uint16_t base_low;           // Base (bits 0-15)
+    uint8_t base_middle;         // Base (bits 16-23)
+    uint8_t access;             // access
+    uint8_t flags_limit_high;       // limit (bits 16-19) / flags
+    uint8_t base_high;           // Base (bits 24-31)
+} __attribute__((packed)) GDT_Entry;
 
 typedef struct
 {
-    uint16_t Limit;
-    GDTEntry* Ptr;
-} __attribute__((packed)) GDTDescriptor;
+    uint16_t limit;
+    GDT_Entry* base;
+} __attribute__((packed)) GDT_Descriptor;
 
 typedef enum {
     GDT_ACCESS_CODE_READABLE            = 0x02,
@@ -63,7 +63,7 @@ typedef enum {
     GDT_BASE_HIGH(base),                        \
 }
 
-GDTEntry g_GDT[] = {
+GDT_Entry gdt[] = {
     // Null descriptor
     GDT_ENTRY(0, 0, 0, 0),
 
@@ -82,10 +82,12 @@ GDTEntry g_GDT[] = {
     ),
 };
 
-GDTDescriptor g_GDTDescriptor = { sizeof(g_GDT) - 1, g_GDT };
+GDT_Descriptor gdt_descriptor = { sizeof(gdt) - 1, gdt };
 
-void __attribute__((cdecl)) i686_GDT_Load(GDTDescriptor* descriptor, uint16_t codeSegment, uint16_t dataSegment);
+void __attribute__((cdecl)) gdt_load(
+    GDT_Descriptor* descriptor, uint16_t code_segment, uint16_t data_segment
+);
 
-void i686_GDT_Initialize() {
-    i686_GDT_Load(&g_GDTDescriptor, i686_GDT_CODE_SEGMENT, i686_GDT_DATA_SEGMENT);
+void gdt_initialize() {
+    gdt_load(&gdt_descriptor, GDT_CODE_SEGMENT, GDT_DATA_SEGMENT);
 }
