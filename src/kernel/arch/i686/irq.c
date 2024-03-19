@@ -46,13 +46,9 @@ void irq_initialize() {
 
     for (int i=0; i<16; i++)
         isr_register_handler(PIC_REMAP_OFFSET + i, irq_handler);
-
-    enable_interrupts();
-
-    driver->unmask(0);
-    driver->unmask(1);
 }
 
 void irq_register_handler(int irq, IRQHandler handler) {
     irq_handlers[irq] = handler;
+    driver->unmask(irq);
 }

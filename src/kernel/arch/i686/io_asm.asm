@@ -37,3 +37,8 @@ global panic_stop
 panic_stop:
     cli
     hlt
+
+global halt
+halt:
+    hlt
+    ret

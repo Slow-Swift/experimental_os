@@ -1,5 +1,15 @@
 {
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.function": "newLine",
     "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
-    "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine"
+    "C_Cpp.vcFormat.newLine.beforeOpenBrace.type": "sameLine",
+    "files.associations": {
+        "bit": "c",
+        "compare": "c",
+        "cstddef": "c",
+        "string": "c",
+        "limits": "c",
+        "memory": "c",
+        "new": "c",
+        "functional": "c"
+    }
 }

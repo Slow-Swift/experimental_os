@@ -45,7 +45,7 @@ void panic(const char *module, char *format, ...) {
     fprintf(stddbg, "[%s] ", module);
     vfprintf(stddbg, format, args);
     fputc('\n', stddbg);
-    fprintf(stderr, "Panic Halt");
+    fprintf(stderr, "KERNEL PANIC");
     fputs(color_reset, stddbg);
     fputc('\n', stddbg);
 
@@ -53,9 +53,9 @@ void panic(const char *module, char *format, ...) {
     fprintf(stderr, "[%s] ", module);
     vfprintf(stderr, format, args);
     fputc('\n', stderr);
-    fprintf(stderr, "Panic Halt");
+    fprintf(stderr, "KERNEL PANIC");
 
     va_end(args);
 
-    for (;;);
+    panic_stop();
 }

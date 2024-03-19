@@ -10,3 +10,4 @@ uint8_t ASMCALL in_byte(uint16_t port);
 
 void ASMCALL io_wait();
 void ASMCALL panic_stop();
+void ASMCALL halt();

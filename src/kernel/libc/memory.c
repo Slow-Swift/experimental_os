@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+// #define DEBUG_MEMORY 0
+
 static const size_t malloc_align_size = 8;
 
 extern char __start;
@@ -51,7 +53,9 @@ static MemoryNode* start;
 static void free_memory(pointer_t base, long long int length) 
 {
     pointer_t end = base + length;
+#ifdef DEBUG_MEMORY
     log_info("Memory", "Freeing %llx bytes from %lx to %lx", length, base, end);
+#endif
 
     MemoryNode* previous = NULL;
     MemoryNode* next = start;
@@ -345,8 +349,10 @@ void* aligned_alloc(size_t alignment, size_t size)
         best_prev->next = next;
     }
 
+#ifdef DEBUG_MEMORY
     log_info("Memory", "Allocating %lx bytes from %p to %x", 
         size_with_header, best_fit, (pointer_t)best_fit + size_with_header);
+#endif
 
     AllocatedRegionHeader* header = (AllocatedRegionHeader*)best_fit;
     header->total_size = size_with_header;

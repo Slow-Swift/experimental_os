@@ -55,6 +55,20 @@ static void put_char(char c)
         cursor_x += 4;
         cursor_x -= cursor_x % 4;
         break;
+    case '\b':
+        cursor_x -= 1;
+        if (cursor_x < 0) {
+            cursor_x = SCREEN_WIDTH-1;
+            cursor_y--;
+            while(cursor_x > 0 && get_char(cursor_x, cursor_y) == '\0')
+                cursor_x--;
+            if (cursor_x < SCREEN_WIDTH - 1 && 
+                get_char(cursor_x, cursor_y) != '\0'
+            )
+                cursor_x++;
+        }
+        set_char(cursor_x, cursor_y, '\0');
+        break;
     default:
         set_char(cursor_x, cursor_y, c);
         cursor_x++;

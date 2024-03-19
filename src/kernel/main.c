@@ -4,17 +4,29 @@
 #include "debug.h"
 #include "defs.h"
 #include <hal/hal.h>
+#include "keyboard.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <arch/i686/io.h>
 #include <arch/i686/irq.h>
+#include <arch/i686/io.h>
+#include <stdlib.h>
+#include "events.h"
+#include "keyboard.h"
 
 extern void _init();
 
-void halt();
+void loop();
 
 void timer(Registers* regs) {
-    printf(".");
+    // printf(".");
+}
+
+void keypress_handler(void *args) {
+    KeypressEvent *event = args;
+    if (event->ascii != '\0' && !event->released)
+        printf("%c", event->ascii);
+    free(event);
 }
 
 void ASMCALL Start(BootData* boot_data) 
@@ -33,10 +45,20 @@ void ASMCALL Start(BootData* boot_data)
     printf("Initialized HAL\n");
 
     irq_register_handler(0, timer);
+    enable_interrupts();
 
-    halt();
+    kbd_initialize();
+
+    register_handler(keypress_handler);
+
+    loop();
 }
 
-void halt() {
-    for(;;);
+void loop() {
+    for(;;) {
+        while (get_event_count() > 0) {
+            call_next_event();
+        }
+        halt();
+    }
 }

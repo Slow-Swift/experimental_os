@@ -3,6 +3,8 @@
 #include <arch/i686/e9.h>
 #include <arch/i686/vga_text.h>
 
+#define DEBUG_MODE 1
+
 enum StandardStreams {
     STDIN = 0,
     STDOUT = 1,
@@ -28,6 +30,9 @@ int vfs_write(FILE *file, const uint8_t *data, size_t size) {
     case STDERR:
         for (size_t i=0; i<size; i++) {
             vga_putc(data[i]);
+#ifdef DEBUG_MODE
+            e9_putc(data[i]);
+#endif
         }
         return size;
     case STDDBG:
