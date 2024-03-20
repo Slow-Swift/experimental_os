@@ -40,7 +40,7 @@ void ASMCALL Start(BootData* boot_data)
 
     memory_initialize(boot_data);
 
-    hal_initialize();
+    hal_initialize(boot_data);
 
     printf("Initialized HAL\n");
 
@@ -50,6 +50,9 @@ void ASMCALL Start(BootData* boot_data)
     kbd_initialize();
 
     register_handler(keypress_handler);
+
+    printf("PCI V2 Installed: %d\n", boot_data->pci_v2_installed);
+    printf("PCI V2 Characteristics: %d\n", boot_data->pci_characteristics);
 
     loop();
 }

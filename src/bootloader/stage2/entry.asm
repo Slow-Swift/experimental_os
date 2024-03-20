@@ -27,6 +27,8 @@ extern kl_load_kernel
 
 extern detect_mem
 
+extern pci_check_v2_installed
+
 ; Used for debugging
 global prog_end
 
@@ -77,6 +79,10 @@ section .text
         call fat_initialize
         mov si, fat_initialized_msg
         call puts
+
+        call pci_check_v2_installed
+        mov [boot_data_addr + boot_data.pci_v2_installed], ah
+        mov [boot_data_addr + boot_data.pci_characteristics], al
 
         call detect_mem
 

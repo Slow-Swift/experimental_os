@@ -11,5 +11,6 @@ struc boot_data
     .memory_map_count:       resb 4
     .memory_map_struct_size: resb 1
     .disk_code:              resb 1
-                             resb 2
+    .pci_v2_installed:       resb 1
+    .pci_characteristics:    resb 1
 endstruc

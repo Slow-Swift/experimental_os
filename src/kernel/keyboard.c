@@ -663,7 +663,7 @@ void kbd_initialize() {
 
     while(!initialized);
 
-    printf("Initialized Keyboard");
+    printf("Initialized Keyboard\n");
 }
 
 void register_handler(Event_Handler handler) {

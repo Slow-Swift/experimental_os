@@ -16,6 +16,20 @@ in_byte:
     in al, dx
     ret
 
+global out_double
+out_double:  
+    mov dx, [esp + 4]
+    mov eax, [esp + 8]
+    out dx, eax
+    ret
+
+global in_double
+in_double: 
+    mov dx, [esp + 4]
+    xor eax, eax
+    in eax, dx
+    ret
+
 global io_wait
 io_wait:
     xor dx, dx

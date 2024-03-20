@@ -1,3 +1,5 @@
 #pragma once
 
-void hal_initialize();
+#include <bootdata.h>
+
+void hal_initialize(BootData *boot_data);
