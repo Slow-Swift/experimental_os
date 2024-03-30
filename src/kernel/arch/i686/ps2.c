@@ -107,8 +107,10 @@ static bool detect_ps2() {
     // Assume present if ACPI version is 1
     if (acpi_version == 1)
         is_present = true;
-    else if (acpi_version > 1) 
+    else if (acpi_version > 1) {
         is_present = (fadt->boot_architecture_flags & 0x2) != 0;
+        printf("Boot Architecture Flags: %#x", fadt->boot_architecture_flags);
+    }
 
     if (is_present)
         printf("  PS/2 Controller [Present]\n");

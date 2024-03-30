@@ -19,7 +19,7 @@ static char * restrict array_out;
  *   stream: A stream parameter so this function matches the printchar
  *           definition
 */
-static int print_char_to_array(char c, FILE * restrict stream) {
+static int print_char_to_array(int c, FILE * restrict stream) {
     if (!limit_array_size || (array_index < array_max - 1)) {
         array_out[array_index] = c;
         array_index++;
@@ -42,14 +42,14 @@ size_t fwrite(
     return nmemb;
 }
 
-int fputc(int c, FILE *stream) 
+int fputc(int c, FILE * restrict stream) 
 {
     unsigned char to_put = c;
     vfs_write(stream, &to_put, sizeof(to_put));
     return to_put;
 }
 
-int putc(char c, FILE *stream) 
+int putc(char c, FILE * restrict stream) 
 {
     return fputc(c, stream);
 }
@@ -164,5 +164,24 @@ int fprintbuf(FILE * restrict stream, const void *buffer, size_t count) {
     for(uint16_t i=0; i<count; i++) {
         fprintf(stream, "%hhx", u8Buffer[i]);
     }
+    return count;
+}
+
+int hexdump(FILE * restrict stream, const void *buffer, size_t count) {
+    int offset = 0;
+    for (int offset = 0; offset < count; offset += 8) {
+        fprintf(stream, "%#x: \t", offset);
+        for (int col=0; (col < 8) && (col < count); col++)
+            printf("%02x ", ((uint8_t *)buffer)[offset + col]);
+        printf("| ");
+        for (int col=0; (col < 8) && (col < count); col++) {
+            uint8_t c = ((uint8_t *)buffer)[offset + col];
+            char to_print = ' ';
+            if (0x30 <= c && c <= 0x7D) to_print = c;
+            fputc(to_print, stream);
+        }
+        printf("\n");
+    }
+
     return count;
 }

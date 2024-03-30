@@ -16,6 +16,20 @@ in_byte:
     in al, dx
     ret
 
+global out_word
+out_word:  
+    mov dx, [esp + 4]
+    mov ax, [esp + 8]
+    out dx, ax
+    ret
+
+global in_word
+in_word: 
+    mov dx, [esp + 4]
+    xor eax, eax
+    in ax, dx
+    ret
+
 global out_double
 out_double:  
     mov dx, [esp + 4]

@@ -280,7 +280,7 @@ section .text
         add cx, ax                      ; <ecx>     Add the offset in sector
 
         cmp cx, dx                      ; <ecx>     If need to read past the end of a sector
-        cmovg cx, dx                    ; <ecx>     Limit to the end of the sector
+        cmova cx, dx                    ; <ecx>     Limit to the end of the sector
         sub cx, ax                      ; <ecx>     Subtract offset in sector to get bytes to read
 
     .read_loop:
@@ -309,7 +309,7 @@ section .text
         jz .read_done       ;           If not then exit
         mov cx, bx          ; <ecx>     cx = bytes to read
         cmp cx, dx          ;           Check if reading more than a sector
-        cmovg cx, dx        ; <ecx>     If so then limit to a single sector
+        cmova cx, dx        ; <ecx>     If so then limit to a single sector
         jmp .read_loop
 
     .read_done:

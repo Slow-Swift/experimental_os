@@ -1,9 +1,13 @@
 #include "pci.h"
 
-#include "io.h"
+#include <arch/i686/ide.h>
+#include <arch/i686/io.h>
+#include <debug.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <util/list.h>
 
 static enum {
     PORT_CONFIG_ADDR = 0xCF8,
@@ -28,7 +32,9 @@ static enum {
 
 static bool config_method_1;
 
-static void check_bus(uint8_t bus);
+static void scan_bus(uint8_t bus);
+
+ListNode *device_list = NULL;
 
 static uint32_t config_read_reg(
     uint8_t bus, uint8_t device, uint8_t func, uint8_t offset
@@ -46,19 +52,33 @@ static uint32_t config_read_reg(
     int temp = in_double(PORT_CONFIG_DATA);
     return temp >> ((offset & 0x3) * 8);
 }
+
 static void check_function(uint8_t bus, uint8_t device, uint8_t function) {
     uint8_t class = config_read_reg(bus, device, function, CLASS);
     uint8_t subclass = config_read_reg(bus, device, function, SUBCLASS);
+    
+    if (class == 0x6 && subclass == 0x4) {
+        uint8_t bus2 = config_read_reg(bus, device, function, SECONDARY_BUS);
+        scan_bus(bus2);
+    }
+
+    PCI_Device *new_dev = malloc(sizeof(PCI_Device));
+    if (new_dev == NULL) panic("PCI", "Could not allocate memory for device!");
+
+    new_dev->bus = bus;
+    new_dev->device = device;
+    new_dev->func = function;
+    new_dev->class_code = class;
+    new_dev->subclass_code = subclass;
+
+    list_add_head(&device_list, new_dev);
+
     printf("  PCI Device [bus=%#x, dev=%#x, func=%#x, class=%#x, subclass=%#x]\n",
         bus, device, function, class, subclass
     );
-    if (class == 0x6 && subclass == 0x4) {
-        uint8_t bus2 = config_read_reg(bus, device, function, SECONDARY_BUS);
-        check_bus(bus2);
-    }
 }
 
-static void check_device(uint8_t bus, uint8_t device) {
+static void scan_device(uint8_t bus, uint8_t device) {
     uint8_t function = 0;
     uint16_t vendor_id;
     uint8_t header_type;
@@ -77,10 +97,14 @@ static void check_device(uint8_t bus, uint8_t device) {
     }
 }
 
-static void check_bus(uint8_t bus) {
+static void scan_bus(uint8_t bus) {
     for (uint8_t device = 0; device < 32; device++) {
-        check_device(bus, device);
+        scan_device(bus, device);
     }
+}
+
+uint32_t pci_dev_read_config_reg(PCI_Device *dev, uint8_t reg) {
+    return config_read_reg(dev->bus, dev->device, dev->func, reg);
 }
 
 void pci_initialize(bool v2_installed, uint8_t flags) {
@@ -89,6 +113,16 @@ void pci_initialize(bool v2_installed, uint8_t flags) {
     if (!config_method_1) {
         printf("  PCI Configuration Method 1 Not supported.");
     }
-    check_bus(0);
+    scan_bus(0);
+
+    ListNode *curr_dev = device_list;
+    while (curr_dev != NULL) {
+        PCI_Device *dev = curr_dev->value;
+        if ((dev->class_code == 0x01) && (dev->subclass_code == 0x01))
+            ide_initialize(dev);
+        curr_dev = curr_dev->next;
+    }
+    
+
     printf("Initialized PCI\n");
 }

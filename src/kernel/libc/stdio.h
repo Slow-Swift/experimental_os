@@ -273,3 +273,18 @@ int vsprintf(
  *   if there was an error.
 */
 int fprintbuf(FILE * restrict stream, const void *buffer, size_t count);
+
+/**
+ * Output [count] bytes of the buffer pointed to by [buffer] formatted nicely
+ * addr: xx xx xx xx   xx xx xx xx abcd efgh
+ * 
+ * Parameters:
+ *   stream: The stream to write to
+ *   buffer: The buffer to write
+ *   count: The number of bytes to run
+ * 
+ * Return int:
+ *   The number of bytes of the buffer actually written. Only less than count
+ *   if there was an error.
+*/
+int hexdump(FILE * restrict stream, const void *buffer, size_t count);

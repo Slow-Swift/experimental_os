@@ -29,6 +29,7 @@ typedef struct {
 
 static RSDT* rsdt = NULL;
 static FADT* fadt = NULL;
+static bool use_xsdt = false;
 
 static const int RSDP_SIZE = 0x8 + 0x1 + 0x6 + 0x1 + 0x4;
 
@@ -52,10 +53,23 @@ static bool is_rsdp_valid(E_RSDP *rsdp) {
 }
 
 static void *find_table(const char* signature) {
-    int entries = (rsdt->header.length - sizeof(rsdt->header)) / 4;
+    int entries;
 
+    // Divide length by the size of an pointer to determine entry count
+    if (use_xsdt)
+        entries = (rsdt->header.length - sizeof(rsdt->header)) / 8;
+    else
+        entries = (rsdt->header.length - sizeof(rsdt->header)) / 4;
+
+    ACPI_SDT_Header *header;
     for (int i = 0; i < entries; i++) {
-        ACPI_SDT_Header *header = &(rsdt->entries[i]);
+        //* If this is 64-bit code this may have to be changed since
+        //* pointers will already be 64 bits and there will be no need to
+        //* multiply by 2
+        if (use_xsdt)
+            header = &(rsdt->entries[i*2]);
+        else
+            header = &(rsdt->entries[i]);
         if (memcmp(header->signature, signature, 4) == 0) return header;
     }
 
@@ -111,10 +125,15 @@ void acpi_initialize() {
     printf("RSDT Address: %#x\n", rsdp->rsdt_address);
     printf("XSDT Address: %#x\n", rsdp->xsdt_address);
 
-    if (rsdp->revision == 0)
+    if (rsdp->revision == 0) {
         rsdt = (RSDT *)rsdp->rsdt_address;
-    else
+        use_xsdt = false;
+        printf("  Using RSDT\n");
+    } else {
         rsdt = (RSDT *)(uint32_t)rsdp->xsdt_address;
+        use_xsdt = true;
+        printf("  Using XSDT\n");
+    }
 
     
     if (!has_valid_checksum(&rsdt->header)) {
@@ -126,5 +145,9 @@ void acpi_initialize() {
         panic("ACPI", "Invalid FADT");
     }
 
+    printf("FADT Bytes: \n");
+    hexdump(stdout, fadt, sizeof(FADT));
+    printf("FACS Bytes: \n");
+    hexdump(stdout, (void *)(fadt->firmware_ctrl), 32);
     printf("ACPI Version: %d\n", fadt->header.revision);
 }

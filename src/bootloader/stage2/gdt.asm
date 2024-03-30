@@ -49,6 +49,7 @@ section .text
         push eax
         push bx
         push ds
+        push es
 
         ; Switch to protected mode
         mov eax, cr0    
@@ -59,6 +60,7 @@ section .text
     .pmode:
         mov bx, 0x20    ; Select unreal data descriptor
         mov ds, bx
+        mov es, bx
 
         ; Swich out of protected mode
         and al, 0xFE    ; Disable pmode bit
@@ -66,6 +68,7 @@ section .text
         jmp 0x0:.unreal
 
     .unreal:
+        pop es          ; Restore data degment
         pop ds          ; Restore data degment
         pop bx
         pop eax
