@@ -15,6 +15,7 @@
 #include "keyboard.h"
 #include "bash.h"
 #include "disk.h"
+#include "fat.h"
 
 extern void _init();
 
@@ -52,6 +53,18 @@ void ASMCALL Start(BootData* boot_data)
     kbd_initialize();
 
     disk_initialize();
+    fat_initialize();
+
+    printf("\nReading TEXT.TXT:\n\n");
+    FILE *file = fopen("TEST    TXT", "");
+    if (file == NULL) {
+        printf("Could not open file\n");
+    } else {
+        char text[256];
+        while(fgets(text, 256, file)) {
+            printf(text);
+        }
+    }
 
     bash_initialize();
     loop();

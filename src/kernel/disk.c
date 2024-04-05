@@ -1,11 +1,9 @@
 #include "disk.h"
 
-#include <arch/i686/ide.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <util/list.h>
 
 static const uint64_t ELF_MAGIC = 0x5452415020494645; // "EFI PART"
 
@@ -34,15 +32,6 @@ typedef struct {
     uint64_t attributes;
     char name[72];
 } GPT_Partition;
-
-typedef struct {
-    uint64_t start;
-    uint64_t size;
-    uint64_t attributes;
-    uint32_t name_length;
-    char *name;
-    ATA_Drive *drive;
-} Partition;
 
 static ListNode *partitions;
 static int partition_count;
@@ -123,11 +112,17 @@ static void read_gpt(ATA_Drive *drive) {
     free(buffer);
 }
 
-int disk_read_sectors(Partition *partition, int sectors, int lba, void *buffer) {
+int disk_read_sectors(
+    Partition *partition, uint64_t sectors, uint64_t lba, void *buffer
+) {
     if (lba >= partition->size) return 0;
 
     return partition->drive->read_sectors(
             sectors, lba + partition->start, buffer);
+}
+
+ListNode *disk_get_partitions() {
+    return partitions;
 }
 
 void disk_initialize() {

@@ -1,14 +1,126 @@
 #include "stdio.h"
 
 #include "format_print.h"
+#include <file.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <hal/vfs.h>
+#include <stdlib.h>
+#include <fat.h>
 
 static size_t array_max;
 static size_t array_index;
 static bool limit_array_size;
 static char * restrict array_out;
+
+
+static FILE stdin_file = { .handle = STREAM_STDIN };
+static FILE stdout_file = { .handle = STREAM_STDOUT };
+static FILE stderr_file = { .handle = STREAM_STDERR };
+static FILE stddbg_file = { .handle = STREAM_STDDBG };
+
+FILE *stdin = &stdin_file;
+FILE *stdout = &stdout_file;
+FILE *stderr = &stderr_file;
+FILE *stddbg = &stddbg_file;
+
+FileData files[FOPEN_MAX];
+
+int feof(FILE *stream) {
+    return stream->eof;
+}
+
+int ferror(FILE *stream) {
+    return stream->error;
+}
+
+int fclose(FILE *stream) {
+    int ret = fflush(stream);
+    if (stream->handle < 0 || stream->handle >= FOPEN_MAX) return EOF;
+
+    if (stream->accessors->close != NULL) 
+        stream->accessors->close(stream);
+    
+    if (stream->buffer != NULL && stream->buffer_auto_allocated) {
+        free(stream->buffer);
+    }
+
+    stream->buffer = NULL;
+    stream->accessors = NULL;
+    stream->buffer_auto_allocated = false;
+    stream->buffer_mode = _IONBF;
+    stream->buffer_size = false;
+    stream->opened = false;
+    stream->eof = false;
+    stream->error = false;
+    return ret;
+}
+
+int fflush(FILE *stream) {
+    if (stream == NULL) {
+        for (int i=0; i<FOPEN_MAX; i++) {
+            if (stream->opened) {
+                fflush(stream);
+            }
+        }
+        return 0;
+    }
+
+    if (stream->accessors != NULL && stream->accessors->flush != NULL)
+        stream->accessors->flush(stream);
+    return 0;
+}
+
+FILE *fopen(const char * restrict filename, const char * restrict mode) {
+    FileData *stream = NULL;
+    for (int i=0; i<FOPEN_MAX; i++) {
+        if (!files[i].opened) {
+            stream = files + i;
+            stream->handle = i;
+            stream->eof = false;
+            stream->error = false;
+            break;
+        }
+    }
+    if (stream == NULL) return NULL;
+    if (fat_open_file(stream, filename, mode) == 0) {
+        stream->opened = true;
+        return stream;
+    }
+    return NULL;
+}
+
+void setbuf(FILE * restrict stream, char * restrict buf) {
+    if (stream->buffer != NULL) return;
+
+    if (buf == NULL) {
+        stream->buffer_mode = _IONBF;
+        stream->buffer_size = 0;
+    }
+    else {
+        stream->buffer = buf;
+        stream->buffer_mode = _IOFBF;
+        stream->buffer_size = BUFSIZ;
+    }
+    stream->buffer_auto_allocated = false;
+}
+
+int setvbuf(FILE * restrict stream, char * restrict buf, int mode, size_t size) 
+{
+    if (stream->buffer != NULL) return -1; // Buffer already set
+    if (mode <= 0 || mode > 3) return -2; // Invalid mode
+
+    if (buf == NULL) {
+        stream->buffer_auto_allocated = true;
+        stream->buffer = malloc(size);
+        if (stream->buffer == NULL) return -3;
+    } else {
+        stream->buffer_auto_allocated = false;
+        stream->buffer = buf;
+    }
+
+    stream->buffer_mode = mode;
+}
 
 /**
  * Output a char to an array. Only output the char if limit_array_size is
@@ -42,10 +154,49 @@ size_t fwrite(
     return nmemb;
 }
 
+size_t fread(
+    void * restrict ptr, size_t size, size_t nmemb, 
+    FILE * restrict stream
+) {
+    uint8_t *uint8_ptr = (uint8_t *)(ptr);
+
+    for (size_t i=0; i<nmemb; i++) {
+        if(vfs_read(stream, uint8_ptr + size * i, size) != size)
+            return i;
+    }
+    return nmemb;
+}
+
+int fgetc(FILE * stream) 
+{
+    unsigned char read;
+    if(vfs_read(stream, &read, sizeof(read)) != sizeof(read))
+        return EOF;
+    return read;
+}
+
+char *fgets(char * restrict s, int n, FILE * stream) 
+{
+    int i=0;
+    for (; i<n-1; i++) {
+        char c = fgetc(stream);
+        if (c == EOF) break;;
+        s[i] = c;
+        if (c == '\n') {
+            i++;
+            break;
+        }
+    }
+    if (i==0) return NULL;
+    s[i] = '\0';
+    return s;
+}
+
 int fputc(int c, FILE * restrict stream) 
 {
     unsigned char to_put = c;
-    vfs_write(stream, &to_put, sizeof(to_put));
+    if(vfs_write(stream, &to_put, sizeof(to_put)) != sizeof(to_put))
+        return EOF;
     return to_put;
 }
 

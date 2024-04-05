@@ -1,26 +1,36 @@
 #pragma once
 
-#include <hal/vfs.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdbool.h>
+
+typedef uint64_t fpos_t;
 
 // FILE defined in <hal/vfs.h>
 // stdin, stdout, stderr, stddbg defined in <hal/vfs.h>
 
 #define EOF -1  
+#define _IOFBF 1
+#define _IOLBF 2
+#define _IONBF 3
 
-// TODO STD: define fpos_t
-// TODO STD: define _IOFBF
-// TODO STD: define _IOLBF
-// TODO STD: define _IONBF
-// TODO STD: define BUFSIZ
-// TODO STD: define FOPENMAX
-// TODO STD: define FILENAMEMAX
+#define BUFSIZ 512
+#define FOPEN_MAX 16
+#define FILENAME_MAX 256
+
+#define SEEK_CUR 1
+#define SEEK_END 2
+#define SEEK_SET 3
+
+typedef struct FileData FILE;
+
+extern FILE* stdin;
+extern FILE* stdout;
+extern FILE* stderr;
+extern FILE* stddbg;
+
 // TODO STD: define L_tmpnam
-// TODO STD: define SEEK_CUR
-// TODO STD: define SEEK_END
-// TODO STD: define SEEK_SET
 // TODO STD: define TMP_MAX
 
 // TODO STD: define remove
@@ -28,12 +38,71 @@
 // TODO STD: define tmpfile
 // TODO STD: define tmpnam
 
-// TODO STD: define fclose
-// TODO STD: define fflush
-// TODO STD: define fopen
+/**
+ * Close a file, flushing all buffers
+ * 
+ * Parameters:
+ *   stream: The filestream to close
+ * 
+ * Returns:
+ *  0 on success, EOF on error
+*/
+int fclose(FILE *stream);
+
+/**
+ * Flush a filestream, writing all buffered data
+ * 
+ * Parameters:
+ *   The stream to flush
+ * 
+ * Returns:
+ *   0 on success, EOF on error
+*/
+int fflush(FILE *stream);
+
+
+/**
+ * Open a file with the given modes
+ * 
+ * Parameter:
+ *   filename: The name of the file to open
+ *   mode: The mode to open the file in
+ * 
+ * Returns:
+ *   The opened filestream on success or NULL on error
+*/
+FILE *fopen(const char * restrict filename, const char * restrict mode);
+
 // TODO STD: define freopen
-// TODO STD: define setbuf
-// TODO STD: define setvbuf
+
+/**
+ * Set the buffer and buffer of a filestream. If the buffer is not null then
+ * _IOFBF is used as the mode otherwise _IONBF is used. This is only valid as
+ * the first operation a file stream. Does not return an error on failure.
+ * 
+ * Parameters:
+ *   stream: The stream to set the buffer for
+ *   buf: The buffer to set
+*/
+void setbuf(FILE * restrict stream, char * restrict buf);
+
+/**
+ * Set the buffer and buffer mode of a file stream. May only be called as the 
+ * first operation on a filestream
+ * 
+ * Parameters:
+ *   stream: The stream to set the buffer for
+ *   buf: The buffer to set
+ *   mode: The buffer mode to use
+ *   size: The size of the buffer
+ * 
+ * Returns:
+ *   0 on success
+ *   -1 if invalid call
+ *   -2 for invalid mode
+ *   -3 on memory allocation fail
+*/
+int setvbuf(FILE * restrict stream, char * restrict buf, int mode, size_t size);
 
 // TODO STD: define fscanf
 // TODO STD: define scanf
@@ -42,13 +111,53 @@
 // TODO STD: define vscanf
 // TODO STD: define vsscanf
 
-// TODO STD: define fgetc
-// TODO STD: define fgets
+/**
+ * Read in a character from a file stream
+ * 
+ * Parameters:
+ *   stream: The stream to read from
+ * 
+ * Returns:
+ *   the read character, or EOF on error
+*/
+int fgetc(FILE * stream);
+
+/**
+ * Read up to n-1 characters from a filestream into the array pointed to by s
+ * 
+ * Parameters:
+ *   s: The array to read into
+ *   n: The maximum number of characters to read + 1 for the null byte
+ *   stream: The stream to read from
+ * 
+ * Returns:
+ *   s on success, NULL on error
+*/
+char *fgets(char * restrict s, int n, FILE * stream);
+
 // TODO STD: define getc
 // TODO STD: define getchar
 // TODO STD: define ungetc
 
-// TODO STD: define fread
+
+/**
+ * Read to the array pointed to by [ptr] up to [nmemb] elements whose
+ * size is specified by [size] from the stream pointed to by [stream].
+ * 
+ * Parameters:
+ *   ptr: base to the start of the array
+ *   size: The size of a member of the array
+ *   nmemb: The number of memebers to copy
+ *   stream: The file stream to write to
+ * 
+ * Returns (size_t):
+ *   The number of members actually read. Only less than nmemb if an
+ *   error occurred.
+*/
+size_t fread(
+    void * restrict ptr, size_t size, size_t nmemb, 
+    FILE * restrict stream
+);
 
 // TODO STD: define fgetpos
 // TODO STD: define fseek

@@ -1,16 +1,15 @@
 #pragma once
 
+#include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct {
-    int file_descriptor;
-} FILE;
-
-extern FILE* stdin;
-extern FILE* stdout;
-extern FILE* stderr;
-extern FILE* stddbg;
+enum StandardStreams {
+    STREAM_STDIN = -1,
+    STREAM_STDOUT = -2,
+    STREAM_STDERR = -3,
+    STREAM_STDDBG = -4
+};
 
 /**
  * Write [size] bytes of data from [data] to [file]
@@ -24,3 +23,5 @@ extern FILE* stddbg;
  *   int: The number of bytes actually written
 */
 int vfs_write(FILE *file, const uint8_t *data, size_t size);
+
+int vfs_read(FILE *file, char *buff, size_t size);
