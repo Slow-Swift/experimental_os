@@ -341,6 +341,31 @@ static int open_root_directory(FileData *fd) {
     return load_file_buffer(fd);
 }
 
+
+//* Not Yet Complete
+static void convert_lfn(LongFilename *lfn) {
+    uint16_t str[] = {
+        lfn->chars0_4[0],
+        lfn->chars0_4[1],
+        lfn->chars0_4[2],
+        lfn->chars0_4[3],
+        lfn->chars0_4[4],
+        lfn->chars5_10[5],
+        lfn->chars5_10[6],
+        lfn->chars5_10[7],
+        lfn->chars5_10[8],
+        lfn->chars5_10[9],
+        lfn->chars5_10[10],
+        lfn->chars11_12[11],
+        lfn->chars11_12[12],
+    };
+
+    int char_index = 0;
+    while (char_index < 13) {
+
+    }
+}
+
 /**
  * Search for the file called by filename in the top-level of the directory
  * opened in dir.
