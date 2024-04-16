@@ -145,9 +145,9 @@ void acpi_initialize() {
         panic("ACPI", "Invalid FADT");
     }
 
-    printf("FADT Bytes: \n");
-    hexdump(stdout, fadt, sizeof(FADT));
-    printf("FACS Bytes: \n");
-    hexdump(stdout, (void *)(fadt->firmware_ctrl), 32);
+    // printf("FADT Bytes: \n");
+    // hexdump(stdout, fadt, sizeof(FADT));
+    // printf("FACS Bytes: \n");
+    // hexdump(stdout, (void *)(fadt->firmware_ctrl), 32);
     printf("ACPI Version: %d\n", fadt->header.revision);
 }

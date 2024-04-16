@@ -27,7 +27,7 @@ static enum {
 typedef enum {
     INIT_START,
     DISABLE_SCAN,
-    SET_SCAN_SET_3,
+    SET_SCAN_SET_2,
     GET_SCAN_SET,
     ENABLE_SCAN,
     INITIALIZED
@@ -590,10 +590,10 @@ static void continue_init(bool success, uint8_t response) {
         add_command(CMD_DISABLE_SCAN, false, 0, false, continue_init);
         return;
     case DISABLE_SCAN:
-        init_state = SET_SCAN_SET_3;
+        init_state = SET_SCAN_SET_2;
         add_command(CMD_SCAN_CODE_SET, true, 0x2, false, continue_init);
         return;
-    case SET_SCAN_SET_3:
+    case SET_SCAN_SET_2:
         init_state = GET_SCAN_SET;
         add_command(CMD_SCAN_CODE_SET, true, 0x0, true, continue_init);
         return;
